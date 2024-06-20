@@ -1,123 +1,293 @@
+import customtkinter as ctk
+import tkinter.messagebox as tkmb
 import tkinter as tk
-from tkinter import messagebox
-import sqlite3
+from tkinter import filedialog, scrolledtext
+from openpyxl import load_workbook
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+import pyperclip
+import os
 
-# Database setup
-conn = sqlite3.connect('users.db')
-cursor = conn.cursor()
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT NOT NULL
-)
-''')
-conn.commit()
+# Set custom appearance and color theme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("green")  # The custom color theme will be applied manually
 
-def register_user():
-    username = entry_register_username.get()
-    password = entry_register_password.get()
+# Initialize main application
+app = ctk.CTk()
+screen_width = app.winfo_screenwidth()
+screen_height = app.winfo_screenheight()
+app.geometry(f"{int(screen_width * 0.4)}x{int(screen_height * 0.5)}")
+app.title("Salary-slip Generator")
 
-    if username == "" or password == "":
-        messagebox.showwarning("Registration Failed", "Please fill out all fields")
+def select_file():
+    file_path = filedialog.askopenfilename(filetypes=[("Excel Files", ".xlsx;.xls")])
+    if file_path:
+        entry_file.delete(0, tk.END)
+        entry_file.insert(0, file_path)
+        view_excel(file_path)
+
+def view_excel(file_path):
+    text_excel.delete(1.0, tk.END)
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    data = []
+    for row in sheet.iter_rows():
+        row_data = [str(cell.value) if cell.value is not None else "" for cell in row]
+        data.append("\t".join(row_data))
+    
+    text_excel.insert(tk.END, "\n".join(data))
+
+def extract_data():
+    file_path = entry_file.get()
+    student_id = entry_id.get()
+    if not file_path:
         return
 
-    try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
-        conn.commit()
-        messagebox.showinfo("Registration Success", "User registered successfully")
-        entry_register_username.delete(0, tk.END)
-        entry_register_password.delete(0, tk.END)
-    except sqlite3.IntegrityError:
-        messagebox.showwarning("Registration Failed", "Username already exists")
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
 
-def login_user():
-    username = entry_login_username.get()
-    password = entry_login_password.get()
-
-    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
-    user = cursor.fetchone()
-
-    if user:
-        messagebox.showinfo("Login Success", "Logged in successfully")
-        entry_login_username.delete(0, tk.END)
-        entry_login_password.delete(0, tk.END)
+    for row in sheet.iter_rows(min_row=2):
+        if str(row[0].value) == student_id:
+            student_data = [cell.value for cell in row]
+            generate_pdf(student_data)
+            break
     else:
-        messagebox.showwarning("Login Failed", "Invalid username or password")
+        messagebox.showwarning("Error", "Employee ID not found.")
 
-def toggle_frame():
-    if var_toggle.get() == 1:
-        frame_register.pack_forget()
-        frame_login.pack(pady=20)
+def generate_pdf(employee_data):
+    pdf_file = f"employee_{employee_data[0]}.pdf"
+    doc = SimpleDocTemplate(pdf_file, pagesize=letter)
+    elements = []
+
+    styles = getSampleStyleSheet()
+    style_normal = styles["Normal"]
+    style_highlight = styles["BodyText"]
+
+    # Title
+    title_data = [
+        ["K.J SOMAIYA INSTITUTE OF TECHNOLOGY, SOMAIYA AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
+        [f"PAY SLIP FOR THE MONTH OF May-24     31 DAYS     1"]
+    ]
+    title_table = Table(title_data, colWidths=[540])
+    title_table.setStyle(TableStyle([
+        ('SPAN', (0, 0), (0, 0)),
+        ('SPAN', (0, 1), (0, 1)),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+    ]))
+    elements.append(title_table)
+    elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+    # Employee Info
+    employee_info_data = [
+        ["NAME", employee_data[1], "DESIGNATION", employee_data[2]],
+        ["DATE OF JOINING", employee_data[3], "NO OF DAYS PRESENT", employee_data[4]],
+        ["PF NO", employee_data[5], "PAN NO", employee_data[6]],
+        ["EMP CODE", employee_data[0], "SALARY A/C NO", employee_data[7]],
+        ["Aadhar Card No", employee_data[8], "UNA", employee_data[9]],
+    ]
+    employee_info_table = Table(employee_info_data, colWidths=[110, 160, 120, 160])
+    employee_info_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+    ]))
+    elements.append(employee_info_table)
+    elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+    # Earnings and Deductions
+    earnings_deductions_data = [
+        ["EARNINGS", "RS", "DEDUCTIONS", "RS"],
+        ["Basic Pay", employee_data[10], "PROF TAX", employee_data[20]],
+        ["HRA", employee_data[11], "PF", employee_data[21]],
+        ["TA/ Conveyance", employee_data[12], "TDS", employee_data[22]],
+        ["SPECIAL ALW", employee_data[13], "LIC", employee_data[23]],
+        ["Salary Arrears", employee_data[14], "Principle loan amount PM", employee_data[24]],
+        ["Books and Periodicals", employee_data[15], "Interest 6% on bal amount", employee_data[25]],
+        ["Telephone", employee_data[16], "Other Deduction", employee_data[26]],
+        ["Medical", employee_data[17], "", ""],
+        ["LTA", employee_data[18], "", ""],
+        ["GROSS SALARY", employee_data[19], "TOTAL DEDUCTION", employee_data[27]],
+        ["NET SALARY PAYABLE", employee_data[28], "", ""]
+    ]
+    earnings_deductions_table = Table(earnings_deductions_data, colWidths=[120, 120, 120, 120])
+    earnings_deductions_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ]))
+    elements.append(earnings_deductions_table)
+    elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+    # Footer
+    footer_data = [
+        ["This is a computer generated salary slip", ""],
+        ["ACCOUNT OFFICER", ""]
+    ]
+    footer_table = Table(footer_data, colWidths=[300, 240])
+    footer_table.setStyle(TableStyle([
+        ('SPAN', (0, 0), (-1, 0)),
+        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+        ('ALIGN', (0, 1), (0, 1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+    ]))
+    elements.append(footer_table)
+
+    doc.build(elements)
+    messagebox.showinfo("PDF Generated", f"PDF generated: {pdf_file}")
+
+def copy_row_to_clipboard():
+    file_path = entry_file.get()
+    student_id = entry_id.get()
+    if not file_path:
+        return
+
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    for row in sheet.iter_rows(min_row=2):
+        if str(row[0].value) == student_id:
+            student_data = [str(cell.value) for cell in row]
+            row_data = "\t".join(student_data)
+            pyperclip.copy(row_data)
+            messagebox.showinfo("Copy Row", "Employee data copied to clipboard.")
+            break
     else:
-        frame_login.pack_forget()
-        frame_register.pack(pady=20)
+        messagebox.showwarning("Error", "Employee ID not found.")
 
-# GUI setup
-window = tk.Tk()
-window.title("Login and Registration System")
-window.attributes('-fullscreen', True)
-window.configure(bg='#f0f0f0')
+def bulk_print_pdfs():
+    file_path = entry_file.get()
+    if not file_path:
+        return
 
-# Exit button to close the fullscreen window
-def exit_fullscreen(event=None):
-    window.attributes('-fullscreen', False)
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
 
-window.bind("<Escape>", exit_fullscreen)
+    for row in sheet.iter_rows(min_row=2):
+        employee_data = [cell.value for cell in row]
+        generate_pdf(employee_data)
+    
+    messagebox.showinfo("Bulk Print", "Bulk PDF generation completed.")
 
-# Toggle Frame
-frame_toggle = tk.Frame(window, bg='#f0f0f0')
-frame_toggle.pack(pady=20)
+def check_excel_file():
+    month = entry_month.get()
+    year = entry_year.get()
+    institute = toggle_institute.get()
+    
+    file_name = f"{institute}{month}{year}.xlsx"
+    if os.path.exists(file_name):
+        entry_file.delete(0, tk.END)
+        entry_file.insert(0, file_name)
+        tkmb.showinfo("File Found", "The specified Excel file is found.")
+    else:
+        tkmb.showwarning("File Not Found", "The specified Excel file is not found. Please upload the required file.")
+    
+    show_file_view_page()
 
-var_toggle = tk.IntVar(value=1)
+def show_file_view_page():
+    frame_input.pack_forget()
+    frame_view.pack(pady=20, padx=40, fill='both', expand=True)
 
-radio_login = tk.Radiobutton(frame_toggle, text="Login", variable=var_toggle, value=1, command=toggle_frame, font=('Helvetica', 14), bg='#f0f0f0')
-radio_login.grid(row=0, column=0, padx=20)
+def show_login_page():
+    frame_login.pack(pady=20, padx=40, fill='both', expand=True)
 
-radio_register = tk.Radiobutton(frame_toggle, text="Register", variable=var_toggle, value=2, command=toggle_frame, font=('Helvetica', 14), bg='#f0f0f0')
-radio_register.grid(row=0, column=1, padx=20)
+def show_input_page():
+    frame_login.pack_forget()
+    frame_input.pack(pady=20, padx=40, fill='both', expand=True)
 
-# Registration Frame
-frame_register = tk.Frame(window, bg='#f0f0f0')
+def login():
+    username = "admin"
+    password = "kjs2024"
+    if user_entry.get() == username and user_pass.get() == password:
+        tkmb.showinfo(title="Login Successful", message="You have logged in Successfully")
+        show_input_page()
+    elif user_entry.get() == username and user_pass.get() != password:
+        tkmb.showwarning(title='Wrong password', message='Please check your password')
+    elif user_entry.get() != username and user_pass.get() == password:
+        tkmb.showwarning(title='Wrong username', message='Please check your username')
+    else:
+        tkmb.showerror(title="Login Failed", message="Invalid Username and password")
 
-label_register = tk.Label(frame_register, text="Register", font=('Helvetica', 20, 'bold'), bg='#f0f0f0')
-label_register.grid(row=0, columnspan=2, pady=10)
-
-label_register_username = tk.Label(frame_register, text="Username", font=('Helvetica', 14), bg='#f0f0f0')
-label_register_username.grid(row=1, column=0, pady=5)
-entry_register_username = tk.Entry(frame_register, font=('Helvetica', 14), width=25)
-entry_register_username.grid(row=1, column=1, pady=5)
-
-label_register_password = tk.Label(frame_register, text="Password", font=('Helvetica', 14), bg='#f0f0f0')
-label_register_password.grid(row=2, column=0, pady=5)
-entry_register_password = tk.Entry(frame_register, show='*', font=('Helvetica', 14), width=25)
-entry_register_password.grid(row=2, column=1, pady=5)
-
-button_register = tk.Button(frame_register, text="Register", command=register_user, font=('Helvetica', 14), bg='#4CAF50', fg='white', width=15)
-button_register.grid(row=3, columnspan=2, pady=10)
+# Apply custom colors
+custom_color_scheme = {
+    "fg_color": "dark red",
+    "button_color": "grey",
+    "text_color": "white"
+}
 
 # Login Frame
-frame_login = tk.Frame(window, bg='#f0f0f0')
+frame_login = ctk.CTkScrollableFrame(master=app, fg_color=custom_color_scheme["fg_color"])
+frame_login.pack(pady=20, padx=40, fill='both', expand=True)
 
-label_login = tk.Label(frame_login, text="Login", font=('Helvetica', 20, 'bold'), bg='#f0f0f0')
-label_login.grid(row=0, columnspan=2, pady=10)
+label_login = ctk.CTkLabel(master=frame_login, text='Admin login page', text_color=custom_color_scheme["text_color"])
+label_login.pack(pady=20)
 
-label_login_username = tk.Label(frame_login, text="Username", font=('Helvetica', 14), bg='#f0f0f0')
-label_login_username.grid(row=1, column=0, pady=5)
-entry_login_username = tk.Entry(frame_login, font=('Helvetica', 14), width=25)
-entry_login_username.grid(row=1, column=1, pady=5)
+user_entry = ctk.CTkEntry(master=frame_login, placeholder_text="Username", text_color=custom_color_scheme["text_color"])
+user_entry.pack(pady=12, padx=10)
 
-label_login_password = tk.Label(frame_login, text="Password", font=('Helvetica', 14), bg='#f0f0f0')
-label_login_password.grid(row=2, column=0, pady=5)
-entry_login_password = tk.Entry(frame_login, show='*', font=('Helvetica', 14), width=25)
-entry_login_password.grid(row=2, column=1, pady=5)
+user_pass = ctk.CTkEntry(master=frame_login, placeholder_text="Password", show="*", text_color=custom_color_scheme["text_color"])
+user_pass.pack(pady=12, padx=10)
 
-button_login = tk.Button(frame_login, text="Login", command=login_user, font=('Helvetica', 14), bg='#4CAF50', fg='white', width=15)
-button_login.grid(row=3, columnspan=2, pady=10)
+button_login = ctk.CTkButton(master=frame_login, text='Login', command=login, fg_color=custom_color_scheme["button_color"])
+button_login.pack(pady=12, padx=10)
 
-# Show the initial frame
-frame_login.pack(pady=20)
+checkbox = ctk.CTkCheckBox(master=frame_login, text='Remember Me', fg_color=custom_color_scheme["button_color"])
+checkbox.pack(pady=12, padx=10)
 
-window.mainloop()
+# Input Frame
+frame_input = ctk.CTkScrollableFrame(master=app, fg_color=custom_color_scheme["fg_color"])
+frame_input.pack_forget()
 
-# Close database connection
-conn.close()
+label_input = ctk.CTkLabel(master=frame_input, text="Enter Details", text_color=custom_color_scheme["text_color"])
+label_input.pack(pady=20)
+
+entry_month = ctk.CTkEntry(master=frame_input, placeholder_text="Month (e.g., May)", text_color=custom_color_scheme["text_color"])
+entry_month.pack(pady=12, padx=10)
+
+entry_year = ctk.CTkEntry(master=frame_input, placeholder_text="Year (e.g., 2024)", text_color=custom_color_scheme["text_color"])
+entry_year.pack(pady=12, padx=10)
+
+toggle_institute = ctk.CTkComboBox(master=frame_input, values=["Somaiya", "SVV"], fg_color=custom_color_scheme["button_color"])
+toggle_institute.pack(pady=12, padx=10)
+
+button_continue = ctk.CTkButton(master=frame_input, text='Continue', command=check_excel_file, fg_color=custom_color_scheme["button_color"])
+button_continue.pack(pady=12, padx=10)
+
+# File View Frame
+frame_view = ctk.CTkScrollableFrame(master=app, fg_color=custom_color_scheme["fg_color"])
+frame_view.pack_forget()
+
+label_file = ctk.CTkLabel(master=frame_view, text="Selected Excel File:", text_color=custom_color_scheme["text_color"])
+label_file.pack(pady=10)
+
+entry_file = ctk.CTkEntry(master=frame_view, width=50, text_color=custom_color_scheme["text_color"])
+entry_file.pack(pady=5)
+
+button_browse = ctk.CTkButton(master=frame_view, text="Browse", command=select_file, fg_color=custom_color_scheme["button_color"])
+button_browse.pack(pady=5)
+
+label_id = ctk.CTkLabel(master=frame_view, text="Enter Employee ID:", text_color=custom_color_scheme["text_color"])
+label_id.pack()
+
+entry_id = ctk.CTkEntry(master=frame_view, text_color=custom_color_scheme["text_color"])
+entry_id.pack(pady=5)
+
+button_extract = ctk.CTkButton(master=frame_view, text="Extract Data", command=extract_data, fg_color=custom_color_scheme["button_color"])
+button_extract.pack(pady=10)
+
+button_bulk_print = ctk.CTkButton(master=frame_view, text="Bulk Print PDFs", command=bulk_print_pdfs, fg_color=custom_color_scheme["button_color"])
+button_bulk_print.pack(pady=10)
+
+button_copy = ctk.CTkButton(master=frame_view, text="Copy Row to Clipboard", command=copy_row_to_clipboard, fg_color=custom_color_scheme["button_color"])
+button_copy.pack(pady=10)
+
+text_excel = scrolledtext.ScrolledText(master=frame_view, width=70, height=15, bg=custom_color_scheme["fg_color"], fg=custom_color_scheme["text_color"])
+text_excel.pack(pady=10)
+
+show_login_page()
+app.mainloop()
