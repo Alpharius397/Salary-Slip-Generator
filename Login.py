@@ -9,6 +9,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import pyperclip
 import os
+import mysql.connector
+import xlsxwriter as xs
 
 # Set custom appearance and color theme
 ctk.set_appearance_mode("light")
@@ -21,6 +23,17 @@ screen_height = app.winfo_screenheight()
 app.geometry(f"{screen_width}x{screen_height}")
 app.title("Salary-slip Generator")
 
+db = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="somaiya_salary"
+)
+
+class data():
+    def __init__(self):
+        self.main_data = None
+b = data()
 def select_file():
     file_path = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx;*.xls")])
     if file_path:
@@ -29,36 +42,51 @@ def select_file():
         view_excel(file_path)
 
 def view_excel(file_path):
-    text_excel.delete(1.0, tk.END)
-    workbook = load_workbook(file_path)
-    sheet = workbook.active
+    if b.main_data is None:
+        text_excel.delete(1.0, tk.END)
+        workbook = load_workbook(file_path)
+        sheet = workbook["Teaching 7th Pay MAY 2024 NEW"]
 
-    data = []
-    for row in sheet.iter_rows():
-        row_data = [str(cell.value) if cell.value is not None else "" for cell in row]
-        data.append(row_data)
+        data = []
+        for row in sheet.iter_rows():
+            row_data = [str(cell.value) if cell.value is not None else "" for cell in row]
+            data.append(row_data)
+        print(data)
 
-    col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
-    formatted_data = "\n".join(" | ".join(f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)) for row in data)
-    
-    text_excel.insert(tk.END, formatted_data)
+        col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
+        formatted_data = "\n".join(" | ".join(f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)) for row in data)
+        
+        text_excel.insert(tk.END, formatted_data)
+
 
 def extract_data():
-    file_path = entry_file.get()
+    print(b.main_data)
     student_id = entry_id.get()
-    if not file_path:
-        return
-
-    workbook = load_workbook(file_path)
-    sheet = workbook.active
-
-    for row in sheet.iter_rows(min_row=2):
-        if str(row[0].value) == student_id:
-            student_data = [cell.value for cell in row]
-            generate_pdf(student_data)
-            break
+    if b.main_data is not None:
+        
+        for row in b.main_data:
+            if str(row[1]) == student_id:
+                student_data = [cell for cell in row[1:]]
+                generate_pdf(student_data)
+                break
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
     else:
-        tkmb.showwarning("Error", "Employee ID not found.")
+
+        file_path = entry_file.get()
+        student_id = entry_id.get()
+        if not file_path:
+            return
+        workbook = load_workbook(file_path)
+        sheet = workbook["Teaching 7th Pay MAY 2024 NEW"]
+
+        for row in sheet.iter_rows(min_row=2):
+            if str(row[0].value) == student_id:
+                student_data = [cell.value for cell in row]
+                generate_pdf(student_data)
+                break
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
 
 def generate_pdf(employee_data):
     pdf_file = f"employee_{employee_data[0]}.pdf"
@@ -149,7 +177,7 @@ def copy_row_to_clipboard():
         return
 
     workbook = load_workbook(file_path)
-    sheet = workbook.active
+    sheet = workbook["Teaching 7th Pay MAY 2024 NEW"]
 
     for row in sheet.iter_rows(min_row=2):
         if str(row[0].value) == student_id:
@@ -162,16 +190,29 @@ def copy_row_to_clipboard():
         tkmb.showwarning("Error", "Employee ID not found.")
 
 def bulk_print_pdfs():
-    file_path = entry_file.get()
-    if not file_path:
-        return
+    print(b.main_data)
+    student_id = entry_id.get()
+    if b.main_data is not None:
+        
+        for row in b.main_data:
+            student_data = [cell for cell in row[1:]]
+            generate_pdf(student_data)
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
+    else:
 
-    workbook = load_workbook(file_path)
-    sheet = workbook.active
+        file_path = entry_file.get()
+        student_id = entry_id.get()
+        if not file_path:
+            return
+        workbook = load_workbook(file_path)
+        sheet = workbook["Teaching 7th Pay MAY 2024 NEW"]
 
-    for row in sheet.iter_rows(min_row=2):
-        employee_data = [cell.value for cell in row]
-        generate_pdf(employee_data)
+        for row in sheet.iter_rows(min_row=2):
+            student_data = [cell.value for cell in row]
+            generate_pdf(student_data)
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
     
     tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
 
@@ -179,13 +220,23 @@ def check_excel_file():
     month = entry_month.get()
     year = entry_year.get()
     institute = toggle_institute.get()
+    month_year=f"{month}_{year}"
     
     file_name = f"{institute}_{month}_{year}.xlsx"
-    if os.path.exists(file_name):
+
+    cursor = db.cursor()
+    table_name = "salary_data"
+
+    cursor.execute(f"SELECT * FROM {table_name} WHERE month_year = '{month_year}'")
+    data=cursor.fetchall()
+
+    if len(data):
         entry_file.delete(0, tk.END)
         entry_file.insert(0, file_name)
+        b.main_data = data
         tkmb.showinfo("File Found", "The specified Excel file is found.")
     else:
+        b.main_data = None
         tkmb.showwarning("File Not Found", "The specified Excel file is not found. Please upload the required file.")
     
     show_file_view_page()
