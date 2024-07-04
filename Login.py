@@ -9,6 +9,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import pyperclip
 import os
+import datetime
 import mysql.connector
 import pandas as pd
 from test import dataRefine,Database
@@ -54,14 +55,16 @@ class App():
                 
             if not self.visible:
                 self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+                self.visible = True
             else:
                 print(' Already visible')
 
         def hide(self):
             if self.visible:
                 self.frame.pack_forget()
+                self.visible = False
             else:
-                print(' Already         ')
+                print(' Already hidden')
 
         def login(self):
             known_user = 'admin'
@@ -71,7 +74,7 @@ class App():
 
             if known_user == username and known_pass == password:
                 tkmb.showinfo(title="Login Successful", message="You have logged in Successfully")
-                show_input_page()
+                self.outer.children['interface'].appear()
             elif known_user == username and known_pass != password:
                 tkmb.showwarning(title='Wrong password', message='Please check your password')
             elif known_user != username and known_pass == password:
@@ -82,23 +85,29 @@ class App():
     class Interface():
         def __init__(self,outer,master):
             self.visible = False
-
+            self.outer = outer
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
 
             self.label_input = ctk.CTkLabel(master=self.frame , text="Enter Details", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.label_input.pack(pady=20)
 
-            self.entry_month = ctk.CTkEntry(master=self.frame , placeholder_text="Month (e.g., May)", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
-            self.entry_month.pack(pady=12, padx=10)
-
-            self.entry_year = ctk.CTkEntry(master=self.frame , placeholder_text="Year (e.g., 2024)", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
-            self.entry_year.pack(pady=12, padx=10)
-
-            self.toggle_institute = ctk.CTkComboBox(master=self.frame , values=["Somaiya", "SVV"], fg_color=custom_color_scheme["combo_box_color"], font=("Helvetica", 16))
-            self.toggle_institute.pack(pady=12, padx=10)
-
             self.button_continue = ctk.CTkButton(master=self.frame , text='Continue', command=check_excel_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_continue.pack(pady=12, padx=10)
+
+            self.entry_year = ctk.StringVar()
+            self.entry_year.set(str(datetime.datetime.now().year))
+            entry_year = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_year,values=[str(year) for year in range(datetime.datetime.now().year-50,datetime.datetime.now().year+1)],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            entry_year.pack(pady=12, padx=10)
+
+            self.entry_month = ctk.StringVar()
+            self.entry_month.set('jan')
+            entry_month = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_month,values=["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sept", "oct", "nov", "dec"],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            entry_month.pack(pady=12, padx=10)
+
+            self.chosen = ctk.StringVar()
+            self.chosen.set('Somaiya')
+            self.toggle_institute  = ctk.CTkOptionMenu(master=self.frame,variable=self.chosen,values=["Somaiya", "SVV"],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.toggle_institute.pack(pady=12, padx=10)
 
             self.button_view_db = ctk.CTkButton(master=self.frame , text='View Data from DB', command=fetchDatabase, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_view_db.pack(pady=12, padx=10)
@@ -113,19 +122,21 @@ class App():
                 
             if not self.visible:
                 self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+                self.visible = True
             else:
                 print(' Already visible')
 
         def hide(self):
             if self.visible:
                 self.frame.pack_forget()
+                self.visible = False
             else:
-                print(' Already         ')
+                print(' Already hidden')
 
     class FileInput():
         def __init__(self,outer,master):
             self.visible = False
-
+            self.outer = outer
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
 
             self.label_file = ctk.CTkLabel(master=self.frame , text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
@@ -164,17 +175,17 @@ class App():
                 
             if not self.visible:
                 self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+                self.visible = True
             else:
                 print(' Already visible')
 
         def hide(self):
             if self.visible:
                 self.frame.pack_forget()
+                self.visible = False
             else:
-                print(' Already         ')
+                print(' Already hidden')
 
-
-    
 
 
 def fetchDatabase():
