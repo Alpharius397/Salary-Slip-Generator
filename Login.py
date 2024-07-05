@@ -1,9 +1,7 @@
 import customtkinter as ctk
 import tkinter.messagebox as tkmb
 import tkinter as tk
-from tkinter import filedialog
-import pandas as pd
-from tkinter import filedialog, scrolledtext
+from tkinter import filedialog, scrolledtext, Scrollbar
 from openpyxl import load_workbook
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.pagesizes import letter
@@ -11,10 +9,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import pyperclip
 import os
-import datetime
 import mysql.connector
 import pandas as pd
-from Database import Database,dataRefine
+from test import dataRefine,Database
+
 
 # Set custom appearance and color theme
 ctk.set_appearance_mode("light")  # The custom color theme will be applied manually
@@ -25,7 +23,8 @@ class App():
         self.app = ctk.CTk()
         self.app.geometry(f"{self.app.winfo_screenwidth()}x{self.app.winfo_screenheight()}")
         self.app.title("Salary-slip Generator")
-        self.children = {'login': self.Login(self, self.app), 'fileinput': self.FileInput(self, self.app), 'interface': self.Interface(self, self.app)}
+        self.database = {'Somaiya':['Teaching','Non-Teaching','Temporary'],'SVV':['svv']}
+        self.children = {'login':self.Login(self,self.app),'fileinput':self.FileInput(self,self.app),'interface':self.Interface(self,self.app),'DB':self.DBFetch(self,self.app)}
         self.children['login'].appear()
 
     class Login():
@@ -70,8 +69,8 @@ class App():
         def login(self):
             known_user = 'admin'
             known_pass = 'kjs2024'
-            username = self.user_entry.get()
-            password = self.user_pass.get()
+            username = 'admin' #self.user_entry.get()
+            password = 'kjs2024' #self.user_pass.get()
 
             if known_user == username and known_pass == password:
                 tkmb.showinfo(title="Login Successful", message="You have logged in Successfully")
@@ -86,36 +85,42 @@ class App():
     class Interface():
         def __init__(self,outer,master):
             self.visible = False
+            self.prev_type = 'Teaching'
+            self.prev_insti = 'Somaiya'
             self.outer = outer
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
+            self.options = {}
 
-            self.label_input = ctk.CTkLabel(master=self.frame , text="Enter Details", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
-            self.label_input.pack(pady=20)
+            label_input = ctk.CTkLabel(master=self.frame , text="Enter Details", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            label_input.pack(pady=20)
 
-            self.button_continue = ctk.CTkButton(master=self.frame , text='Continue', command=check_excel_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_continue = ctk.CTkButton(master=self.frame , text='Continue', command=self.getData, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_continue.pack(pady=12, padx=10)
 
             self.entry_year = ctk.StringVar()
-            self.entry_year.set(str(datetime.datetime.now().year))
-            entry_year = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_year,values=[str(year) for year in range(datetime.datetime.now().year-50,datetime.datetime.now().year+1)],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
-            entry_year.pack(pady=12, padx=10)
+            self.entry_year.set('')
+            self.entry_yearList = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_year,values=[],command=self.changeMenu,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.entry_yearList.pack(pady=12, padx=10)
 
             self.entry_month = ctk.StringVar()
-            self.entry_month.set('jan')
-            entry_month = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_month,values=["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sept", "oct", "nov", "dec"],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
-            entry_month.pack(pady=12, padx=10)
+            self.entry_month.set('')
+            self.entry_monthList = ctk.CTkOptionMenu(master=self.frame,variable=self.entry_month,values=[],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.entry_monthList.pack(pady=12, padx=10)
 
             self.chosen = ctk.StringVar()
             self.chosen.set('Somaiya')
-            self.toggle_institute  = ctk.CTkOptionMenu(master=self.frame,variable=self.chosen,values=["Somaiya", "SVV"],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.toggle_institute  = ctk.CTkOptionMenu(master=self.frame,variable=self.chosen,values=["Somaiya", "SVV"],command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.toggle_institute.pack(pady=12, padx=10)
 
-            self.button_view_db = ctk.CTkButton(master=self.frame , text='View Data from DB', command=fetchDatabase, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
-            self.button_view_db.pack(pady=12, padx=10)
+            self.type = ctk.StringVar()
+            self.type.set('Teaching')
+            self.toggle_type  = ctk.CTkOptionMenu(master=self.frame,variable=self.type,values=[],command=self.checkDB,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.toggle_type.pack(pady=12, padx=10)
 
-            self.button_back_to_login = ctk.CTkButton(master=self.frame , text='Back', command=show_login_page, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_back_to_login = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_login, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_back_to_login.pack(pady=12, padx=10)
 
+            self.available_data()
 
         def appear(self):
             for child in self.outer.children:
@@ -123,6 +128,7 @@ class App():
                 
             if not self.visible:
                 self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+                self.available_data()
                 self.visible = True
             else:
                 print(' Already visible')
@@ -133,45 +139,110 @@ class App():
                 self.visible = False
             else:
                 print(' Already hidden')
-       
+
+        def back_to_login(self):
+            self.outer.children['login'].appear()
+
+        def checkDB(self,event):
+            self.available_data()
+
+        def available_data(self):
+            data = Database(host="localhost", user="root", password="08222004", database="somaiya_salary").showTables()
+            institute = self.toggle_institute.get().lower()
+            if data:
+                data = data.get(institute)
+                data = data.get(self.toggle_type.get().lower()) if data else None
+
+                if data and len(data) > 0:
+                    self.options = data
+
+                    self.entry_monthList.configure(values=data[list(data)[0]])
+                    self.entry_yearList.configure(values=list(data))
+
+                    self.entry_year.set(list(data)[0])
+                    self.entry_month.set(data[list(data)[0]][0])
+                    self.prev_type = self.toggle_type.get()
+                    self.prev_insti = self.toggle_institute.get()
+                else:
+                    self.toggle_institute.set(self.prev_insti)
+                    self.toggle_type.set(self.prev_type)
+                    self.changeType(event=None)
+                    tkmb.showwarning("Error", "No Data found!")
+            else:
+                tkmb.showwarning("Error", "Database connection failed or no tables found!")
+
+
+        def changeMenu(self,event):
+            year = self.entry_year.get()
+            self.entry_monthList.configure(values=[month for month in self.options[year]])
+            self.entry_month.set(self.options[year][0])
+
+        def changeType(self,event):
+            institute = self.toggle_institute.get()
+
+            self.toggle_type.configure(values = list(self.outer.database[institute]))
+            self.toggle_type.set(list(self.outer.database[institute])[0])
+
+            self.available_data()
+
+        def getData(self):
+            month = self.entry_month.get()
+            year = self.entry_year.get()
+            insti = self.toggle_institute.get().lower()
+            type = self.toggle_type.get().lower()
+
+            print(month,year,insti,type)
+            self.outer.children['DB'].month = month
+            self.outer.children['DB'].year = year
+            self.outer.children['DB'].insti = insti
+            self.outer.children['DB'].type = type
+            self.outer.children['DB'].load_database(month,year,insti,type)
+            self.outer.children['DB'].label_date.configure(text=f"{month.capitalize()}-{year.upper()}")
+            self.outer.children['DB'].appear()
+
 
     class FileInput():
-        def __init__(self, outer, master):
-            self.parent = outer
-            #self.app = outer.app
+        def __init__(self,outer,master):
             self.visible = False
             self.outer = outer
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
 
-            self.label_file = ctk.CTkLabel(master=self.frame, text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.label_file = ctk.CTkLabel(master=self.frame , text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.label_file.pack(pady=10)
 
-            self.entry_file = ctk.CTkEntry(master=self.frame, width=50, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.entry_file = ctk.CTkEntry(master=self.frame , width=50, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.entry_file.pack(pady=5)
 
-            self.button_browse = ctk.CTkButton(master=self.frame, text="Browse", command=self.select_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_browse = ctk.CTkButton(master=self.frame , text="Browse", command=select_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_browse.pack(pady=5)
 
-            self.label_id = ctk.CTkLabel(master=self.frame, text="Enter Employee ID:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
-            self.label_id.pack(pady=5)
+            self.label_id = ctk.CTkLabel(master=self.frame , text="Enter Employee ID:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.label_id.pack()
 
-            self.entry_id = ctk.CTkEntry(master=self.frame, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.entry_id = ctk.CTkEntry(master=self.frame , text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.entry_id.pack(pady=5)
 
-            self.button_extract = ctk.CTkButton(master=self.frame, text="Generate PDF", command=self.extract_data, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_extract = ctk.CTkButton(master=self.frame , text="Generate pdf", command=extract_data, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_extract.pack(pady=10)
 
-            self.button_bulk_print = ctk.CTkButton(master=self.frame, text="Bulk Print PDFs", command=self.bulk_print_pdfs, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_bulk_print = ctk.CTkButton(master=self.frame , text="Bulk Print PDFs", command=bulk_print_pdfs, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_bulk_print.pack(pady=10)
 
-            self.button_copy = ctk.CTkButton(master=self.frame, text="Copy Row to Clipboard", command=self.copy_row_to_clipboard, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_copy = ctk.CTkButton(master=self.frame , text="Copy Row to Clipboard", command=copy_row_to_clipboard, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_copy.pack(pady=10)
 
-            self.button_back_to_input = ctk.CTkButton(master=self.frame, text='Back', command=show_input_page, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
-            self.button_back_to_input.pack(pady=12, padx=10)
+            self.button_back_to_interface = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_back_to_interface.pack(pady=12, padx=10)
 
-            self.text_excel = scrolledtext.ScrolledText(master=self.frame, width=90, height=25, bg="black", fg="white", wrap=tk.NONE, font=("Courier", 12))
-            self.text_excel.pack(pady=10, fill='both', expand=True)
+            self.text_excel = scrolledtext.ScrolledText(master=self.frame, width=90, height=25,  bg="black", fg="white", wrap=tk.NONE, font=("Courier", 12))
+            x_scrollbar = Scrollbar(self.frame, orient="horizontal",command=self.text_excel.xview)
+            y_scrollbar = Scrollbar(self.frame,command=self.text_excel.yview)
+
+            x_scrollbar.pack(side='bottom', fill='x')
+            y_scrollbar.pack(side='right', fill='y')
+
+            self.text_excel.configure(xscrollcommand=x_scrollbar.set,yscrollcommand=y_scrollbar.set)
+            self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
 
         def appear(self):
             for child in self.outer.children:
@@ -190,66 +261,110 @@ class App():
             else:
                 print(' Already hidden')
 
+        def back_to_interface(self):
+            self.outer.children['interface'].appear()
+
+    class DBFetch():
+        def __init__(self,outer,master):
+
+            self.visible = False
+            self.outer = outer
+            self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
+            self.month = "None"
+            self.year = "None"
+            self.type = "None"
+            self.insti = "None"
+            self.data = []
+            self.label_date = ctk.CTkLabel(master=self.frame , text=f"{self.month.capitalize()}-{self.year.upper()}", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.label_date.pack()
+
+            self.label_id = ctk.CTkLabel(master=self.frame , text="Enter Employee ID:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.label_id.pack()
+
+            self.entry_id = ctk.CTkEntry(master=self.frame , text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.entry_id.pack(pady=5)
+
+            self.button_extract = ctk.CTkButton(master=self.frame , text="Generate pdf", command=self.extract_data, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_extract.pack(pady=10)
+
+            self.button_bulk_print = ctk.CTkButton(master=self.frame , text="Bulk Print PDFs", command=self.bulk_print_pdfs, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_bulk_print.pack(pady=10)
+
+            self.button_copy = ctk.CTkButton(master=self.frame , text="Copy Row to Clipboard", command=self.copy_row_to_clipboard, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_copy.pack(pady=10)
+
+            self.button_back_to_interface = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_back_to_interface.pack(pady=12, padx=10)
+
+            self.text_excel = scrolledtext.ScrolledText(master=self.frame, width=90, height=25,  bg="black", fg="white", wrap=tk.NONE, font=("Courier", 12))
+            x_scrollbar = Scrollbar(self.frame, orient="horizontal",command=self.text_excel.xview)
+            y_scrollbar = Scrollbar(self.frame,command=self.text_excel.yview)
+
+            x_scrollbar.pack(side='bottom', fill='x')
+            y_scrollbar.pack(side='right', fill='y')
+
+            self.text_excel.configure(xscrollcommand=x_scrollbar.set,yscrollcommand=y_scrollbar.set)
+            self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
 
 
+        def appear(self):
+            for child in self.outer.children:
+                self.outer.children[child].hide()
+                
+            if not self.visible:
+                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+                self.visible = True
+            else:
+                print(' Already visible')
 
-        def fetchDatabase():
-            pde = pd.read_excel('Project/KJSIT_MAY_2023.xlsx')
-            c = dataRefine(pde)
-            new_col = c.refine()
-            b = Database(
-                host="localhost",
-                user="root",
-                password="08222004",
-                database="somaiya_salary", columns=new_col.columns
-            )
+        def hide(self):
+            if self.visible:
+                self.frame.pack_forget()
+                self.visible = False
+            else:
+                print(' Already hidden')
 
+        def back_to_interface(self):
+            self.outer.children['interface'].appear()
 
-        
-        def select_file(self, event=None):
-            file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")])
-            if file_path:
-                self.entry_file.delete(0, tk.END)
-                self.entry_file.insert(0, file_path)
-                self.view_excel(file_path)
-        def view_excel(self, file_path):
+        def load_database(self,month,year,insti,type):
+            db = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
+            self.data=db.fetchAll(month,year,insti,type)
+            db.endDatabase()
+            self.view_excel()
+
+        def bulk_print_pdfs(self):
+            for i in self.data['HR_EMP_CODE'].values:
+                search = self.data[self.data['HR_EMP_CODE']==i]
+                self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
+
+            tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
+
+        def view_excel(self):
             self.text_excel.delete(1.0, tk.END)
-            workbook = load_workbook(file_path)
-            sheet = workbook.active
-            data = []
-            for row in sheet.iter_rows():
-                row_data = [str(cell.value) if cell.value is not None else "" for cell in row]
+
+            data = [[i for i in self.data.columns]]
+            for index,row in self.data.iterrows():
+                row_data = [str(cell) for cell in row.values]
                 data.append(row_data)
 
             col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
-            formatted_data = "\n".join(" | ".join(f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)) for row in data)
-                
+            formatted_data = "\n".join([" "+" | ".join([f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)]) +" " for row in data])
+            
             self.text_excel.insert(tk.END, formatted_data)
 
-
         def extract_data(self):
-            file_path = self.entry_file.get()
-            employee_id = self.outer.children['interface'].entry_id.get()
-            month = self.outer.children['interface'].entry_month.get()
-            year = self.outer.children['interface'].entry_year.get()
-            institute = self.outer.children['interface'].chosen.get()
+            employee_id = self.entry_id.get()
 
-            if not file_path:
-                tkmb.showwarning("Error", "Please select an Excel file.")
-                return
+            search = self.data[self.data['HR_EMP_CODE']==employee_id]
 
-            workbook = load_workbook(file_path)
-            sheet = workbook.active
-
-            for row in sheet.iter_rows(min_row=2):
-                if str(row[0].value) == employee_id:
-                    employee_data = [cell.value for cell in row]
-                    self.generate_pdf(employee_data, month, year, institute)
-                    break
+            if search.shape[0]:
+                self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
             else:
                 tkmb.showwarning("Error", "Employee ID not found.")
 
-        def generate_pdf(self, employee_data, month, year, institute):
+
+        def generate_pdf(self, employee_data):
             try:
                 pdf_file = f"employee_{employee_data[0]}.pdf"
                 doc = SimpleDocTemplate(pdf_file, pagesize=letter)
@@ -261,15 +376,17 @@ class App():
 
                 # Title
                 title_data = [
-                    [f"{institute} INSTITUTE OF ENGINEERING & INFORMATION TECHNOLOGY, {institute} AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
-                    [f"PAY SLIP FOR THE MONTH OF {month}-{year}     31 DAYS     1"]
+                    ["K.J SOMAIYA INSTITUTE OF ENGINEERING & INFORMATION TECHNOLOGY, SOMAIYA AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
+                    [f"PAY SLIP FOR THE MONTH OF {self.month}-{self.year}     31 DAYS     1"]
                 ]
                 title_table = Table(title_data, colWidths=[540])
                 title_table.setStyle(TableStyle([
                     ('SPAN', (0, 0), (0, 0)),
                     ('SPAN', (0, 1), (0, 1)),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8)  # Reduce font size for the title
+
                 ]))
                 elements.append(title_table)
                 elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
@@ -342,80 +459,125 @@ class App():
             except Exception as e:
                 tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
 
-        def copy_row_to_clipboard():
-            file_path = app.children['fileinput'].entry_file.get()
-            employee_id = app.children['fileinput'].entry_id.get()
 
-            if not file_path:
-                tkmb.showwarning("Error", "Please select an Excel file.")
-                return
 
-            workbook = load_workbook(file_path)
-            sheet = workbook.active
+        def copy_row_to_clipboard(self):
+            employee_id = self.entry_id.get()
 
-            for row in sheet.iter_rows(min_row=2):
-                if str(row[0].value) == employee_id:
-                    employee_data = [str(cell.value) for cell in row]
-                    row_data = "\t".join(employee_data)
-                    pyperclip.copy(row_data)
-                    tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
-                    break
+            search = self.data[self.data['HR_EMP_CODE']==employee_id]
+
+            if search.shape[0]:
+                pyperclip.copy(','.join(map(str, search.values[0])))
+                tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
             else:
                 tkmb.showwarning("Error", "Employee ID not found.")
 
-        def bulk_print_pdfs(self):
-            file_path = self.entry_file.get()
-            month = self.outer.children['interface'].entry_month.get()
-            year = self.outer.children['interface'].entry_year.get()
-            institute = self.outer.children['interface'].chosen.get()
 
-            if not file_path:
-                tkmb.showwarning("Error", "Please select an Excel file.")
-                return
-
-            workbook = load_workbook(file_path)
-            sheet = workbook.active
-
-            for row in sheet.iter_rows(min_row=2):
-                employee_data = [cell.value for cell in row]
-                self.generate_pdf(employee_data, month, year, institute)
-            
-            tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
-
-def check_excel_file():
-            month = app.children['interface'].entry_month.get()
-            year = app.children['interface'].entry_year.get()
-            institute = app.children['interface'].chosen.get()
-            
-            file_name = f"{institute}{month}{year}.xlsx"
-            if os.path.exists(file_name):
-                app.children['fileinput'].entry_file.delete(0, tk.END)
-                app.children['fileinput'].entry_file.insert(0, file_name)
-                tkmb.showinfo("File Found", "The specified Excel file is found.")
-            else:
-                tkmb.showwarning("File Not Found", "The specified Excel file is not found. Please upload the required file.")
-            
-            app.children['fileinput'].appear()
-
-def show_file_view_page():
-            app.children['fileinput'].appear()
-
-def show_login_page():
-            app.children['login'].appear()
-
-def show_input_page():
-            app.children['interface'].appear()
 
 def fetchDatabase():
-            pde = pd.read_excel('Project/KJSIT_MAY_2023.xlsx')
-            c = dataRefine(pde)
-            new_col = c.refine()
-            b = Database(
-                host="localhost",
-                user="root",
-                password="08222004",
-                database="somaiya_salary", columns=new_col.columns
-            )
+    pde = pd.read_excel('KJSIT_MAY_2023.xlsx')
+    c = dataRefine(pde)
+    new_col = c.refine()
+    b = Database(
+        host="localhost",
+        user="root",
+        password="08222004",
+        database="somaiya_salary", columns=new_col.columns
+    )
+
+
+  
+def select_file(self):
+    file_path = filedialog.askopenfilename(filetypes=[("Excel Files", ".xlsx;.xls")])
+    if file_path:
+        self.entry_file.delete(0, tk.END)
+        self.entry_file.insert(0, file_path)
+        self.view_excel(file_path)
+
+
+def view_excel(self, file_path):
+    self.text_excel.delete(1.0, tk.END)
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    data = []
+    for row in sheet.iter_rows():
+        row_data = [str(cell.value) if cell.value is not None else "" for cell in row]
+        data.append(row_data)
+
+    col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
+    formatted_data = "\n".join(" | ".join(f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)) for row in data)
+    
+    self.text_excel.insert(tk.END, formatted_data)
+
+def extract_data(self):
+    file_path = self.entry_file.get()
+    employee_id = self.entry_id.get()
+    if not file_path:
+        return
+
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    data = []
+    for row in sheet.iter_rows(values_only=True):
+        if row[0] == employee_id:
+            data = row
+            break
+
+    if data:
+        self.generate_pdf(data)
+    else:
+        tkmb.showwarning("Error", "Employee ID not found.")
+
+
+def copy_row_to_clipboard(self):
+    file_path = self.entry_file.get()
+    employee_id = self.entry_id.get()
+    if not file_path:
+        return
+
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    for row in sheet.iter_rows(min_row=2):
+        if str(row[0].value) == employee_id:
+            employee_data = [str(cell.value) for cell in row]
+            row_data = "\t".join(employee_data)
+            pyperclip.copy(row_data)
+            tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
+            break
+    else:
+        tkmb.showwarning("Error", "Employee ID not found.")
+
+def bulk_print_pdfs(self):
+    file_path = self.entry_file.get()
+    if not file_path:
+        return
+
+    workbook = load_workbook(file_path)
+    sheet = workbook.active
+
+    for row in sheet.iter_rows(min_row=2):
+        employee_data = [cell.value for cell in row]
+        self.generate_pdf(employee_data)
+    
+    tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
+
+def check_excel_file(self):
+    month = self.entry_month.get()
+    year = self.entry_year.get()
+    institute = self.toggle_institute.get()
+    
+    file_name = f"{institute}{month}{year}.xlsx"
+    if os.path.exists(file_name):
+        self.entry_file.delete(0, tk.END)
+        self.entry_file.insert(0, file_name)
+        tkmb.showinfo("File Found", "The specified Excel file is found.")
+    else:
+        tkmb.showwarning("File Not Found", "The specified Excel file is not found. Please upload the required file.")
+    
+    self.show_file_view_page()
 
 # Apply custom colors
 custom_color_scheme = {
@@ -424,6 +586,7 @@ custom_color_scheme = {
     "text_color": "black",
     "combo_box_color": "white"  # Added for combo box color
 }
+
 
 app = App()
 
