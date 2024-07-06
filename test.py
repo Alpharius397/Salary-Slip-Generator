@@ -47,34 +47,37 @@ class Database():
             self.db.commit()
 
     # shows all tables
-    def showTables(self) -> list[tuple[str]]:
-
-        def contains(list:list,char:str) -> int:
+    def showTables(self) -> dict:
+        def contains(lst, char):
             try:
-                temp = list.index('_')
+                temp = lst.index('_')
                 return True
             except ValueError:
                 return False
-         
+
         cursor = self.db.cursor()
         memo = {}
         try:
-            cursor.execute('show tables')
+            cursor.execute('SHOW TABLES')
         except:
             print('MySQL Error Occured!')
             return None
 
         temp = cursor.fetchall()
         print(temp)
-        year =  [table[0].split('_') for table in temp]
-        
-        for i,j,k,l in year:
-            if i not in memo:
-                memo[i] = {}
-            if j not in memo[i]:
-                memo[i][j] = defaultdict(list)
+        year = [table[0].split('_') for table in temp]
 
-            memo[i][j][l] += memo[i][j][l] + [k]
+        for parts in year:
+            if len(parts) == 4:
+                i, j, k, l = parts
+                if i not in memo:
+                    memo[i] = {}
+                if j not in memo[i]:
+                    memo[i][j] = defaultdict(list)
+
+                memo[i][j][l] += memo[i][j][l] + [k]
+            else:
+                print(f"Unexpected table name format: {'_'.join(parts)}")
 
         return memo
 
@@ -124,7 +127,7 @@ class Database():
 
 def dataRefine(data):
 
-    rename = lambda x: x.strip().replace('  ',' ').replace('-','').replace('.','').replace(' ','_').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','_').replace('__','_')
+    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','')
 
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
 
