@@ -147,7 +147,7 @@ class App():
             self.available_data()
 
         def available_data(self):
-            data = Database(host="localhost", user="root", password="08222004", database="somaiya_salary").showTables()
+            data = Database(host="localhost", user="root", password="1234", database="somaiya_salary").showTables()
             institute = self.toggle_institute.get().lower()
             if data:
                 data = data.get(institute)
@@ -207,13 +207,16 @@ class App():
             self.outer = outer
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
 
-            self.label_file = ctk.CTkLabel(master=self.frame , text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.label_id = ctk.CTkLabel(master=self.frame , text="Upload Excel File", text_color=custom_color_scheme["text_color"],font=("Helvetica", 16))
+            self.label_id.pack()
+
+            self.label_file = ctk.CTkLabel(master=self.frame, text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.label_file.pack(pady=10)
 
-            self.entry_file = ctk.CTkEntry(master=self.frame , width=50, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.entry_file = ctk.CTkEntry(master=self.frame, width=50, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.entry_file.pack(pady=5)
 
-            self.button_browse = ctk.CTkButton(master=self.frame , text="Browse", command=select_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.button_browse = ctk.CTkButton(master=self.frame, text="Browse", command=select_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_browse.pack(pady=5)
 
             self.label_id = ctk.CTkLabel(master=self.frame , text="Enter Employee ID:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
@@ -481,7 +484,7 @@ def fetchDatabase():
     b = Database(
         host="localhost",
         user="root",
-        password="08222004",
+        password="1234",
         database="somaiya_salary", columns=new_col.columns
     )
 
