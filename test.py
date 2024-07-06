@@ -35,11 +35,14 @@ class Database():
             new = {col:data[(data['HR_EMP_CODE']==i)][[col]].iloc[0,0] for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!='HR_EMP_CODE'])
             
+            keys = ','.join(new.keys())
+            values = ','.join([ f"'{i}'" for i in new.values()])
             try:
-                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({','.join(new.keys())}) VALUE ({','.join([str(i) for i in new.values()])})")
-
+                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")
+                print("1")
             except mysql.connector.errors.ProgrammingError as e:
                 cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE HR_EMP_CODE={i}')
+                print(e)
             except:
                 print('Not MySQL Error!')
                 return None
@@ -132,7 +135,8 @@ def dataRefine(data):
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
 
 # Must do these 3 steps
-"""pde = pd.read_excel("front/KJSIT_MAY_2023.xlsx")
+'''
+pde = pd.read_excel("Project/KJSIT_MAY_2023.xlsx")
 dataRefine(pde)
 
 b = Database(
@@ -140,4 +144,7 @@ b = Database(
         user="root",
         password="1234",
         database="somaiya_salary"
-    )"""
+    )
+
+#b.createData('may',2024,pde.columns,'somaiya','teaching')
+b.updateData(pde,'may',2024,'somaiya','teaching')'''
