@@ -34,20 +34,17 @@ class Database():
         for i in data['HR_EMP_CODE']:
             new = {col:data[(data['HR_EMP_CODE']==i)][[col]].iloc[0,0] for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!='HR_EMP_CODE'])
-            
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
             try:
-                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")
-                print("1")
-            except mysql.connector.errors.ProgrammingError as e:
+                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
+                print("0")
+            except mysql.connector.errors.IntegrityError as e:
                 cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE HR_EMP_CODE={i}')
                 print(e)
-            except:
-                print('Not MySQL Error!')
-                return None
-            
             self.db.commit()
+        return 1
+            
 
     # shows all tables
     def showTables(self) -> dict:
@@ -78,7 +75,7 @@ class Database():
                 if j not in memo[i]:
                     memo[i][j] = defaultdict(list)
 
-                memo[i][j][l] += memo[i][j][l] + [k]
+                memo[i][j][l] += [k] if k not in memo[i][j][l] else memo[i][j][l]
             else:
                 print(f"Unexpected table name format: {'_'.join(parts)}")
 
@@ -121,7 +118,7 @@ class Database():
             return None
         
         columns = self.getColumns(month,year,insti,type)
-        return pd.DataFrame(cursor.fetchall(),columns=columns)
+        return pd.DataFrame(cursor.fetchall(),columns=columns,dtype=str)
     
     # end database. RIP
     def endDatabase(self) -> None:
@@ -130,13 +127,12 @@ class Database():
 
 def dataRefine(data):
 
-    rename = lambda x: x.strip().replace('  ',' ').replace('-','').replace('.','').replace(' ','_').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','_').replace('__','_')
+    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','')
 
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
 
 # Must do these 3 steps
-'''
-pde = pd.read_excel("Project/KJSIT_MAY_2023.xlsx")
+"""pde = pd.read_excel("front/KJSIT_MAY_2023.xlsx")
 dataRefine(pde)
 
 b = Database(
@@ -144,7 +140,4 @@ b = Database(
         user="root",
         password="1234",
         database="somaiya_salary"
-    )
-
-#b.createData('may',2024,pde.columns,'somaiya','teaching')
-b.updateData(pde,'may',2024,'somaiya','teaching')'''
+    )"""
