@@ -13,6 +13,180 @@ from test import dataRefine,Database
 
 # Set custom appearance and color theme
 ctk.set_appearance_mode("light")  # The custom color theme will be applied manually
+class ExcelFunc():
+    def generate_pdf(self,employee_data,month,year,type,insti):
+        try:
+            pdf_file = f"{insti}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
+            doc = SimpleDocTemplate(pdf_file, pagesize=letter)
+            elements = []
+
+            styles = getSampleStyleSheet()
+            style_normal = styles["Normal"]
+            style_highlight = styles["BodyText"]
+            
+            # Title
+            title_data = [
+                ["K.J SOMAIYA INSTITUTE OF ENGINEERING & INFORMATION TECHNOLOGY, SOMAIYA AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
+                [f"PAY SLIP FOR THE MONTH OF {month.capitalize()}-{year}     31 DAYS     1"]
+            ]
+            title_table = Table(title_data, colWidths=[540])
+            title_table.setStyle(TableStyle([
+                ('SPAN', (0, 0), (0, 0)),
+                ('SPAN', (0, 1), (0, 1)),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+            ]))
+            elements.append(title_table)
+            elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+            # Employee Info
+            employee_info_data = [
+                ["NAME", employee_data[1], "DESIGNATION", employee_data[2]],
+                ["DATE OF JOINING", employee_data[3], "NO OF DAYS PRESENT", employee_data[4]],
+                ["PF NO", employee_data[5], "PAN NO", employee_data[6]],
+                ["EMP CODE", employee_data[0], "SALARY A/C NO", employee_data[7]],
+                ["Aadhar Card No", employee_data[8], "UNA", employee_data[9]],
+            ]
+            employee_info_table = Table(employee_info_data, colWidths=[120, 160, 120, 160])
+            employee_info_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+            ]))
+            elements.append(employee_info_table)
+            elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+            # Earnings and Deductions
+            earnings_deductions_data = [
+                ["EARNINGS", "RS", "DEDUCTIONS", "RS"],
+                ["Basic Pay", employee_data[10], "PROF TAX", employee_data[26]],
+                ["Basic", employee_data[10], "", ""],
+                ["RENT HRA", employee_data[11], "PF", employee_data[27]],
+                ["30%", employee_data[11], "TDS", employee_data[28]],
+                ["TA/ Conveyance", employee_data[12], "LIC", employee_data[29]],
+                ["SPECIAL ALW", employee_data[13], ""],
+                ["Salary Arrears", employee_data[14], "Principle loan amount PM", employee_data[30]],
+                ["Vehicle", employee_data[15], "", ""],
+                ["Books and Periodicals", employee_data[16], "Interest 6% on bal amount", employee_data[30]],
+                ["Etn Alw", employee_data[17], "", ""],
+                ["Petrol Alw", employee_data[18], "", ""],
+                ["Telephone", employee_data[19], "Other Deduction", employee_data[30]],
+                ["Medical", employee_data[20], "", ""],
+                ["LTA", employee_data[21], "", ""],
+                ["Alw", employee_data[22], "", ""],
+                ["EX-Grataia", employee_data[23], "", ""],
+                ["Ent All", employee_data[24], "", ""],
+                ["GROSS SALARY", employee_data[25], "TOTAL DEDUCTION", employee_data[30]],
+                ["NET SALARY PAYABLE", employee_data[30], "", ""]
+            ]
+            earnings_deductions_table = Table(earnings_deductions_data, colWidths=[180, 100, 180, 100])
+            earnings_deductions_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+            ]))
+            elements.append(earnings_deductions_table)
+            elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
+
+            # Footer
+            footer_data = [
+                ["This is a computer generated salary slip", ""],
+                ["ACCOUNT OFFICER", ""]
+            ]
+            footer_table = Table(footer_data, colWidths=[300, 240])
+            footer_table.setStyle(TableStyle([
+                ('SPAN', (0, 0), (-1, 0)),
+                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                ('ALIGN', (0, 1), (0, 1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
+            ]))
+            elements.append(footer_table)
+
+            doc.build(elements)
+        except Exception as e:
+            tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
+
+    def view_excel(self):
+        self.text_excel.delete(1.0, tk.END)
+
+        data = [[i for i in self.data.columns]]
+        for index,row in self.data.iterrows():
+            row_data = [str(cell) for cell in row.values]
+            data.append(row_data)
+
+        col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
+        formatted_data = "\n".join([" "+" | ".join([f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)]) +" " for row in data])
+        
+        self.text_excel.insert(tk.END, formatted_data)
+
+    def changeType(self,event):
+        institute = self.chosen.get()
+        self.toggle_type.configure(values = list(self.outer.database[institute]))
+        self.type.set(list(self.outer.database[institute])[0])
+
+    def changeSheets(self,event=None):
+        self.sheetList.configure(values=self.sheets)
+
+    def changeView(self,event=None):
+        self.data = pd.read_excel(self.file.get(),sheet_name=self.sheet.get(),dtype=str)
+        dataRefine(self.data)
+        self.view_excel()
+
+    def load_database(self,month,year,insti,type):
+        db = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
+        self.data=db.fetchAll(month,year,insti,type)
+        db.endDatabase()
+        self.view_excel()
+
+    def bulk_print_pdfs(self):
+        for i in self.data['HR_EMP_CODE'].values:
+            search = self.data[self.data['HR_EMP_CODE']==i]
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
+
+        tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
+
+
+    def extract_data(self):
+        employee_id = self.entry_id.get()
+
+        search = self.data[self.data['HR_EMP_CODE']==employee_id]
+
+        if search.shape[0]:
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
+            tkmb.showinfo("Single Print", "PDF generation completed.")
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
+
+
+    def copy_row_to_clipboard(self):
+        employee_id = self.entry_id.get()
+
+        search = self.data[self.data['HR_EMP_CODE']==employee_id]
+
+        if search.shape[0]:
+            pyperclip.copy(','.join(search.values[0]))
+            tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
+        else:
+            tkmb.showwarning("Error", "Employee ID not found.")
+
+class BaseTemplate():
+
+    def appear(self):
+        for child in self.outer.children:
+            self.outer.children[child].hide()
+            
+        if not self.visible:
+            self.frame.pack(pady=20, padx=40, fill='both', expand=True)
+            self.visible = True
+        else:
+            print(' Already visible')
+
+    def hide(self):
+        if self.visible:
+            self.frame.pack_forget()
+            self.visible = False
+        else:
+            print(' Already hidden')
 
 # Initialize main application
 class App():
@@ -21,11 +195,12 @@ class App():
         self.app.geometry(f"{self.app.winfo_screenwidth()}x{self.app.winfo_screenheight()}")
         self.app.title("Salary-slip Generator")
         self.database = {'Somaiya':['Teaching','NonTeaching','Temporary'],'SVV':['svv']}
+
         self.children = {'login':self.Login(self,self.app),'fileinput':self.FileInput(self,self.app),'landing':self.Landing(self,self.app),'interface':self.Interface(self,self.app),'DB':self.DBFetch(self,self.app),'upload':self.DBUpload(self,self.app)}
 
         self.children['login'].appear()
 
-    class Login():
+    class Login(BaseTemplate):
         def __init__(self,outer,master):
             self.visible = False
             self.outer = outer
@@ -47,23 +222,6 @@ class App():
             self.checkbox.pack(pady=12, padx=10)
 
 
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
-
         def login(self):
             known_user = 'admin'
             known_pass = 'kjs2024'
@@ -80,7 +238,7 @@ class App():
             else:
                 tkmb.showerror(title="Login Failed", message="Invalid Username and password")
 
-    class Landing():
+    class Landing(BaseTemplate):
         def __init__(self,outer,master):
             self.visible = False
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
@@ -92,30 +250,13 @@ class App():
             button_upload= ctk.CTkButton(master=self.frame , text='Upload Excel data', command=self.upload, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             button_upload.pack(pady=12, padx=10)
 
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
-
         def upload(self):
             self.outer.children['fileinput'].appear()
 
         def preview(self):
             self.outer.children['interface'].appear()
 
-    class Interface():
+    class Interface(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
             self.visible = False
             self.prev_type = 'Teaching'
@@ -156,24 +297,6 @@ class App():
             self.available_data()
             self.changeType(event=None)
 
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.available_data()
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
-
         def back_to_landing(self):
             self.outer.children['landing'].appear()
 
@@ -206,11 +329,7 @@ class App():
             self.entry_month.set(self.options[year][0])
 
         def changeType(self,event):
-            institute = self.toggle_institute.get()
-
-            self.toggle_type.configure(values = list(self.outer.database[institute]))
-            self.toggle_type.set(list(self.outer.database[institute])[0])
-
+            ExcelFunc.changeType(self,event=event)
             self.available_data()
 
         def getData(self):
@@ -229,7 +348,7 @@ class App():
             self.outer.children['DB'].appear()
 
 
-    class FileInput():
+    class FileInput(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
             self.visible = False
             self.outer = outer
@@ -240,8 +359,8 @@ class App():
             self.label_file = ctk.CTkLabel(master=self.frame , text="Selected Excel File:", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.label_file.pack(pady=10)
 
-            self.entry_file = ctk.CTkEntry(master=self.frame , width=50, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
-            self.entry_file.pack(pady=5)
+            self.file = ctk.CTkEntry(master=self.frame , width=100, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.file.pack(pady=5)
 
             self.button_browse = ctk.CTkButton(master=self.frame , text="Browse", command=self.select_file, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_browse.pack(pady=5)
@@ -308,29 +427,13 @@ class App():
             if self.data.shape[0]:
                 self.outer.children['upload'].data = self.data
                 self.outer.children['upload'].sheet.set(self.sheet.get())
-                self.outer.children['upload'].file = self.entry_file.get()
+                self.outer.children['upload'].file.delete(0, tk.END)
+                self.outer.children['upload'].file.insert(0, self.file.get())
                 self.outer.children['upload'].sheetList.configure(values=self.sheets)
                 self.outer.children['upload'].view_excel()
                 self.outer.children['upload'].appear()
             else:
                 tkmb.showwarning("Error", "No data found")
-
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
 
         def extract_data(self):
             employee_id = self.entry_id.get()
@@ -346,98 +449,6 @@ class App():
             else:
                 tkmb.showwarning("Error", "Employee ID not found.")
 
-
-        def generate_pdf(self,employee_data,month,year,type,insti):
-            try:
-                pdf_file = f"{insti}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
-                doc = SimpleDocTemplate(pdf_file, pagesize=letter)
-                elements = []
-
-                styles = getSampleStyleSheet()
-                style_normal = styles["Normal"]
-                style_highlight = styles["BodyText"]
-                
-                # Title
-                title_data = [
-                    ["K.J SOMAIYA INSTITUTE OF ENGINEERING & INFORMATION TECHNOLOGY, SOMAIYA AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
-                    [f"PAY SLIP FOR THE MONTH OF {month.capitalize()}-{year}     31 DAYS     1"]
-                ]
-                title_table = Table(title_data, colWidths=[540])
-                title_table.setStyle(TableStyle([
-                    ('SPAN', (0, 0), (0, 0)),
-                    ('SPAN', (0, 1), (0, 1)),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(title_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Employee Info
-                employee_info_data = [
-                    ["NAME", employee_data[1], "DESIGNATION", employee_data[2]],
-                    ["DATE OF JOINING", employee_data[3], "NO OF DAYS PRESENT", employee_data[4]],
-                    ["PF NO", employee_data[5], "PAN NO", employee_data[6]],
-                    ["EMP CODE", employee_data[0], "SALARY A/C NO", employee_data[7]],
-                    ["Aadhar Card No", employee_data[8], "UNA", employee_data[9]],
-                ]
-                employee_info_table = Table(employee_info_data, colWidths=[120, 160, 120, 160])
-                employee_info_table.setStyle(TableStyle([
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(employee_info_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Earnings and Deductions
-                earnings_deductions_data = [
-                    ["EARNINGS", "RS", "DEDUCTIONS", "RS"],
-                    ["Basic Pay", employee_data[10], "PROF TAX", employee_data[26]],
-                    ["Basic", employee_data[10], "", ""],
-                    ["RENT HRA", employee_data[11], "PF", employee_data[27]],
-                    ["30%", employee_data[11], "TDS", employee_data[28]],
-                    ["TA/ Conveyance", employee_data[12], "LIC", employee_data[29]],
-                    ["SPECIAL ALW", employee_data[13], ""],
-                    ["Salary Arrears", employee_data[14], "Principle loan amount PM", employee_data[30]],
-                    ["Vehicle", employee_data[15], "", ""],
-                    ["Books and Periodicals", employee_data[16], "Interest 6% on bal amount", employee_data[30]],
-                    ["Etn Alw", employee_data[17], "", ""],
-                    ["Petrol Alw", employee_data[18], "", ""],
-                    ["Telephone", employee_data[19], "Other Deduction", employee_data[30]],
-                    ["Medical", employee_data[20], "", ""],
-                    ["LTA", employee_data[21], "", ""],
-                    ["Alw", employee_data[22], "", ""],
-                    ["EX-Grataia", employee_data[23], "", ""],
-                    ["Ent All", employee_data[24], "", ""],
-                    ["GROSS SALARY", employee_data[25], "TOTAL DEDUCTION", employee_data[30]],
-                    ["NET SALARY PAYABLE", employee_data[30], "", ""]
-                ]
-                earnings_deductions_table = Table(earnings_deductions_data, colWidths=[180, 100, 180, 100])
-                earnings_deductions_table.setStyle(TableStyle([
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER')
-                ]))
-                elements.append(earnings_deductions_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Footer
-                footer_data = [
-                    ["This is a computer generated salary slip", ""],
-                    ["ACCOUNT OFFICER", ""]
-                ]
-                footer_table = Table(footer_data, colWidths=[300, 240])
-                footer_table.setStyle(TableStyle([
-                    ('SPAN', (0, 0), (-1, 0)),
-                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                    ('ALIGN', (0, 1), (0, 1), 'RIGHT'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(footer_table)
-
-                doc.build(elements)
-            except Exception as e:
-                tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
 
         def copy_row_to_clipboard(self):
             employee_id = self.entry_id.get()
@@ -459,24 +470,13 @@ class App():
             self.toggle_type.configure(values = list(self.outer.database[institute]))
             self.toggle_type.set(list(self.outer.database[institute])[0])
 
-        def view_excel(self):
-            self.text_excel.delete(1.0, tk.END)
-
-            data = [[i for i in self.data.columns]]
-            for index,row in self.data.iterrows():
-                row_data = [str(cell) for cell in row.values]
-                data.append(row_data)
-
-            col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
-            formatted_data = "\n".join([" "+" | ".join([f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)]) +" " for row in data])
-            
-            self.text_excel.insert(tk.END, formatted_data)
 
         def select_file(self):
             file_path = filedialog.askopenfilename(filetypes=[("Excel Files", ".xlsx;.xls")])
             if file_path:
-                self.entry_file.delete(0, tk.END)
-                self.entry_file.insert(0, file_path)
+                self.file.delete(0, tk.END)
+                self.file.insert(0, file_path)
+                self.file.configure(width=7*len(file_path))
                 self.sheets = list(pd.read_excel(file_path,sheet_name=None).keys())
                 self.sheet.set(self.sheets[0])
                 self.changeSheets(event=None)
@@ -489,16 +489,8 @@ class App():
 
             tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
 
-        def changeSheets(self,event=None):
-            self.sheetList.configure(values=self.sheets)
 
-
-        def changeView(self,event=None):
-            self.data = pd.read_excel(self.entry_file.get(),sheet_name=self.sheet.get(),dtype=str)
-            dataRefine(self.data)
-            self.view_excel()
-
-    class DBFetch():
+    class DBFetch(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
 
             self.visible = False
@@ -541,169 +533,12 @@ class App():
             self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
 
 
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
-
         def back_to_interface(self):
             self.outer.children['interface'].appear()
 
-        def load_database(self,month,year,insti,type):
-            db = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
-            self.data=db.fetchAll(month,year,insti,type)
-            db.endDatabase()
-            self.view_excel()
-
-        def bulk_print_pdfs(self):
-            for i in self.data['HR_EMP_CODE'].values:
-                search = self.data[self.data['HR_EMP_CODE']==i]
-                self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
-
-            tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
-
-        def view_excel(self):
-            self.text_excel.delete(1.0, tk.END)
-
-            data = [[i for i in self.data.columns]]
-            for index,row in self.data.iterrows():
-                row_data = [str(cell) for cell in row.values]
-                data.append(row_data)
-
-            col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
-            formatted_data = "\n".join([" "+" | ".join([f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)]) +" " for row in data])
-            
-            self.text_excel.insert(tk.END, formatted_data)
-
-        def extract_data(self):
-            employee_id = self.entry_id.get()
-
-            search = self.data[self.data['HR_EMP_CODE']==employee_id]
-
-            if search.shape[0]:
-                self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
-            else:
-                tkmb.showwarning("Error", "Employee ID not found.")
 
 
-        def generate_pdf(self,employee_data,month,year,type,insti):
-            try:
-                pdf_file = f"{insti}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
-                doc = SimpleDocTemplate(pdf_file, pagesize=letter)
-                elements = []
-
-                styles = getSampleStyleSheet()
-                style_normal = styles["Normal"]
-                style_highlight = styles["BodyText"]
-
-                # Title
-                title_data = [
-                    ["K.J SOMAIYA INSTITUTE OF ENGINEERING & INFORMATION TECHNOLOGY, SOMAIYA AYURVIHAR EVARAD NAGAR, EASTERN EXPRESS HIGHWAY SION"],
-                    [f"PAY SLIP FOR THE MONTH OF {month}-{year}     31 DAYS     1"]
-                ]
-                title_table = Table(title_data, colWidths=[540])
-                title_table.setStyle(TableStyle([
-                    ('SPAN', (0, 0), (0, 0)),
-                    ('SPAN', (0, 1), (0, 1)),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(title_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Employee Info
-                employee_info_data = [
-                    ["NAME", employee_data[1], "DESIGNATION", employee_data[2]],
-                    ["DATE OF JOINING", employee_data[3], "NO OF DAYS PRESENT", employee_data[4]],
-                    ["PF NO", employee_data[5], "PAN NO", employee_data[6]],
-                    ["EMP CODE", employee_data[0], "SALARY A/C NO", employee_data[7]],
-                    ["Aadhar Card No", employee_data[8], "UNA", employee_data[9]],
-                ]
-                employee_info_table = Table(employee_info_data, colWidths=[120, 160, 120, 160])
-                employee_info_table.setStyle(TableStyle([
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(employee_info_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Earnings and Deductions
-                earnings_deductions_data = [
-                    ["EARNINGS", "RS", "DEDUCTIONS", "RS"],
-                    ["Basic Pay", employee_data[10], "PROF TAX", employee_data[26]],
-                    ["Basic", employee_data[10], "", ""],
-                    ["RENT HRA", employee_data[11], "PF", employee_data[27]],
-                    ["30%", employee_data[11], "TDS", employee_data[28]],
-                    ["TA/ Conveyance", employee_data[12], "LIC", employee_data[29]],
-                    ["SPECIAL ALW", employee_data[13], ""],
-                    ["Salary Arrears", employee_data[14], "Principle loan amount PM", employee_data[30]],
-                    ["Vehicle", employee_data[15], "", ""],
-                    ["Books and Periodicals", employee_data[16], "Interest 6% on bal amount", employee_data[30]],
-                    ["Etn Alw", employee_data[17], "", ""],
-                    ["Petrol Alw", employee_data[18], "", ""],
-                    ["Telephone", employee_data[19], "Other Deduction", employee_data[30]],
-                    ["Medical", employee_data[20], "", ""],
-                    ["LTA", employee_data[21], "", ""],
-                    ["Alw", employee_data[22], "", ""],
-                    ["EX-Grataia", employee_data[23], "", ""],
-                    ["Ent All", employee_data[24], "", ""],
-                    ["GROSS SALARY", employee_data[25], "TOTAL DEDUCTION", employee_data[30]],
-                    ["NET SALARY PAYABLE", employee_data[30], "", ""]
-                ]
-                earnings_deductions_table = Table(earnings_deductions_data, colWidths=[180, 100, 180, 100])
-                earnings_deductions_table.setStyle(TableStyle([
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER')
-                ]))
-                elements.append(earnings_deductions_table)
-                elements.append(Paragraph("<br/><br/>", style_normal))  # Add spacing
-
-                # Footer
-                footer_data = [
-                    ["This is a computer generated salary slip", ""],
-                    ["ACCOUNT OFFICER", ""]
-                ]
-                footer_table = Table(footer_data, colWidths=[300, 240])
-                footer_table.setStyle(TableStyle([
-                    ('SPAN', (0, 0), (-1, 0)),
-                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-                    ('ALIGN', (0, 1), (0, 1), 'RIGHT'),
-                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold')
-                ]))
-                elements.append(footer_table)
-
-                doc.build(elements)
-                #tkmb.showinfo("PDF Generated", f"PDF generated: {pdf_file}")
-            except Exception as e:
-                tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
-
-
-        def copy_row_to_clipboard(self):
-            employee_id = self.entry_id.get()
-
-            search = self.data[self.data['HR_EMP_CODE']==employee_id]
-
-            if search.shape[0]:
-                pyperclip.copy(','.join(search.values[0]))
-                tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
-            else:
-                tkmb.showwarning("Error", "Employee ID not found.")
-
-    class DBUpload():
+    class DBUpload(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
 
             self.visible = False
@@ -711,7 +546,9 @@ class App():
             self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
             self.sheets = []
             self.data = []
-            self.file = None
+
+            self.file = ctk.CTkEntry(master=self.frame , width=100, text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
+            self.file.pack(pady=5)
 
             self.sheet = ctk.StringVar()
             self.sheet.set('')
@@ -785,7 +622,7 @@ class App():
                         tkmb.showinfo("Alert", "Table dropped (Table does not exists)")
 
                  
-
+            database.endDatabase()
 
         def upload(self):
             database = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
@@ -830,53 +667,11 @@ class App():
                     else:
                         tkmb.showinfo("Upload","Data upload aborted")
 
-
-
-        def appear(self):
-            for child in self.outer.children:
-                self.outer.children[child].hide()
-                
-            if not self.visible:
-                self.frame.pack(pady=20, padx=40, fill='both', expand=True)
-                self.visible = True
-            else:
-                print(' Already visible')
-
-        def hide(self):
-            if self.visible:
-                self.frame.pack_forget()
-                self.visible = False
-            else:
-                print(' Already hidden')
+            database.endDatabase()
 
         def back_to_view(self):
             self.outer.children['fileinput'].appear()
 
-        def changeType(self,event):
-            institute = self.chosen.get()
-            self.toggle_type.configure(values = list(self.outer.database[institute]))
-            self.type.set(list(self.outer.database[institute])[0])
-
-        def view_excel(self):
-            self.text_excel.delete(1.0, tk.END)
-
-            data = [[i for i in self.data.columns]]
-            for index,row in self.data.iterrows():
-                row_data = [str(cell) for cell in row.values]
-                data.append(row_data)
-
-            col_widths = [max(len(str(cell)) for cell in col) for col in zip(*data)]
-            formatted_data = "\n".join([" "+" | ".join([f"{cell:<{col_widths[i]}}" for i, cell in enumerate(row)]) +" " for row in data])
-            
-            self.text_excel.insert(tk.END, formatted_data)
-
-        def changeSheets(self,event=None):
-            self.sheetList.configure(values=self.sheets)
-
-        def changeView(self,event=None):
-            self.data = pd.read_excel(self.file,sheet_name=self.sheet.get(),dtype=str)
-            dataRefine(self.data)
-            self.view_excel()
 
 # Apply custom colors
 custom_color_scheme = {

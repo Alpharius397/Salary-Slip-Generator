@@ -45,6 +45,7 @@ class Database():
 
             except mysql.connector.errors.ProgrammingError as f:
                 return -1
+            
             self.db.commit()
         return 1
             
@@ -59,7 +60,6 @@ class Database():
         except mysql.connector.errors.ProgrammingError as f:
             return 0
         
-
     # shows all tables
     def showTables(self) -> dict:
         def contains(lst, char):
@@ -117,6 +117,7 @@ class Database():
             return None
         
         columns = self.getColumns(month,year,insti,type)
+        
         return pd.DataFrame(cursor.fetchall(),columns=columns)
 
     # fetches all data from table month_year  
