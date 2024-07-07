@@ -51,8 +51,9 @@ class Database():
                 cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE HR_EMP_CODE={i}')
 
             except mysql.connector.errors.ProgrammingError as f:
+                print(f)
                 return -1
-            
+
             self.db.commit()
         return 1
     
@@ -116,7 +117,7 @@ class Database():
 
 
     # fetches data for That guy from table month_year
-    def fetchThat(self,month:str,year:int,emp_id:int,insti:str,type:str) -> pd.DataFrame | None:
+    def fetchThat(self,month:str,year:int,emp_id:int,insti:str,type:str) -> pd.DataFrame:
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -130,7 +131,7 @@ class Database():
         return pd.DataFrame(cursor.fetchall(),columns=columns)
 
     # fetches all data from table month_year  
-    def fetchAll(self,month:str,year:int,insti:str,type:str) -> pd.DataFrame | None:
+    def fetchAll(self,month:str,year:int,insti:str,type:str) -> pd.DataFrame:
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -150,7 +151,7 @@ class Database():
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
 
-    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','')
+    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','').replace(':','')
 
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
 
