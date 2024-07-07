@@ -35,7 +35,7 @@ class Database():
             return 0
 
     # updates existing data or inserts new data
-    def updateData(self,data,month:str,year:int,insti:str,type:str) -> None:
+    def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
         cursor = self.db.cursor()
 
         for i in data['HR_EMP_CODE']:
@@ -55,8 +55,9 @@ class Database():
             
             self.db.commit()
         return 1
-            
-    def dropTable(self,insti:str,type:str,month,year) -> None:
+    
+    # drops a table {insti}_{type}_{month}_{year}
+    def dropTable(self,insti:str,type:str,month,year) -> int:
         cursor = self.db.cursor()
 
         try:
@@ -68,7 +69,7 @@ class Database():
             return 0
         
     # shows all tables
-    def showTables(self) -> dict:
+    def showTables(self) -> dict[str,dict[str,list[str]]]:
         def contains(lst, char):
             try:
                 temp = lst.index('_')
@@ -101,7 +102,8 @@ class Database():
 
         return memo
 
-    def getColumns(self,month,year,insti:str,type:str):
+    # fetches all columns of a table
+    def getColumns(self,month:str,year:int,insti:str,type:str) -> list[str]:
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -114,7 +116,7 @@ class Database():
 
 
     # fetches data for That guy from table month_year
-    def fetchThat(self,month:str,year:int,emp_id:int,insti:str,type:str) -> tuple[list[str]]:
+    def fetchThat(self,month:str,year:int,emp_id:int,insti:str,type:str) -> pd.DataFrame | None:
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -128,7 +130,7 @@ class Database():
         return pd.DataFrame(cursor.fetchall(),columns=columns)
 
     # fetches all data from table month_year  
-    def fetchAll(self,month:str,year:int,insti:str,type:str) -> dict[str,list[str]]:
+    def fetchAll(self,month:str,year:int,insti:str,type:str) -> pd.DataFrame | None:
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -145,7 +147,8 @@ class Database():
     def endDatabase(self) -> None:
         self.db.close()
 
-def dataRefine(data):
+# refines columns for sql in place
+def dataRefine(data:pd.DataFrame) -> None:
 
     rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','')
 
