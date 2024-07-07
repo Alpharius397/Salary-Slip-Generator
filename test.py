@@ -137,7 +137,6 @@ class Database():
     # end database. RIP
     def endDatabase(self) -> None:
         self.db.close()
-    
 
 def dataRefine(data):
 

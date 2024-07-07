@@ -1,3 +1,4 @@
+import os
 import customtkinter as ctk
 import tkinter as tk
 import tkinter.messagebox as tkmb
@@ -10,20 +11,39 @@ import pyperclip
 import pandas as pd
 from test import dataRefine,Database
 
-
 # Set custom appearance and color theme
 ctk.set_appearance_mode("light")  # The custom color theme will be applied manually
 
 class ExcelFunc():
-    def generate_pdf(self,employee_data,month,year,type,chosen):
+    def generate_pdf(self,employee_data,month,year,type,chosen,file,bulk):
         try:
-            pdf_file = f"{chosen}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
+            if file is not None and not bulk:
+                name = file.name
+                file.close()
+                os.remove(name)
+                file_path = '/'.join(name.split('/')[:-1])
+                pdf_file = f"{file_path}/{chosen}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
+
+            elif bulk:
+                try:
+                    where = os.path.join(os.path.dirname(__file__),chosen)
+                    where = os.path.join(where,type)
+                    where = os.path.join(where,year)
+                    where = os.path.join(where,month)
+
+                    os.makedirs(where)
+
+                except OSError as e:
+                    print('Director exists')
+
+                pdf_file = os.path.join(where,f"{chosen}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf")
+
+            
             doc = SimpleDocTemplate(pdf_file, pagesize=letter)
             elements = []
 
             styles = getSampleStyleSheet()
             style_normal = styles["Normal"]
-            style_highlight = styles["BodyText"]
             
             # Title
             title_data = [
@@ -152,7 +172,7 @@ class ExcelFunc():
         search = self.data[self.data['HR_EMP_CODE']==employee_id]
 
         if search.shape[0]:
-            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen)
+            self.saveLocation(employee_data=search.values[0],month=self.month,year=self.year,type=self.type,chosen=self.chosen)
             tkmb.showinfo("Single Print", "PDF generation completed.")
         else:
             tkmb.showwarning("Error", "Employee ID not found.")
@@ -171,10 +191,17 @@ class ExcelFunc():
     def bulk_print_pdfs(self):
         for i in self.data['HR_EMP_CODE'].values:
             search = self.data[self.data['HR_EMP_CODE']==str(i)]
-            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen)
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen,file=None,bulk=True)
 
         tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
 
+    def saveLocation(self,chosen,type,month,year,employee_data):
+        file = filedialog.asksaveasfile(initialfile=f"{chosen}_{type}_{month}_{year}_employee_{employee_data[0]}",defaultextension=".pdf",filetypes=[("PDF Fie","*.pdf")])
+        if file:
+            self.generate_pdf(employee_data,month,year,type,chosen,file,False)
+        else:
+            return
+        
 class BaseTemplate():
 
     def appear(self):
@@ -353,7 +380,6 @@ class App():
             self.outer.children['DB'].label_date.configure(text=f"{chosen.capitalize()}-{type.capitalize()}-{month.capitalize()}-{year.upper()}")
             self.outer.children['DB'].appear()
 
-
     class FileInput(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
             self.visible = False
@@ -456,7 +482,6 @@ class App():
                 self.changeSheets(event=None)
                 self.changeView()
 
-
     class DBFetch(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
 
@@ -502,8 +527,6 @@ class App():
 
         def back_to_interface(self):
             self.outer.children['interface'].appear()
-
-
 
     class DBUpload(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
@@ -639,7 +662,6 @@ class App():
 
         def back_to_view(self):
             self.outer.children['fileinput'].appear()
-
 
 # Apply custom colors
 custom_color_scheme = {
