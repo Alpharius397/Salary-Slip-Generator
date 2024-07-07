@@ -1,16 +1,12 @@
-import datetime
 import customtkinter as ctk
 import tkinter as tk
 import tkinter.messagebox as tkmb
 from tkinter import filedialog, scrolledtext, Scrollbar,messagebox 
-from openpyxl import load_workbook
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import pyperclip
-import os
-import mysql.connector
 import pandas as pd
 from test import dataRefine,Database
 
@@ -24,7 +20,7 @@ class App():
         self.app = ctk.CTk()
         self.app.geometry(f"{self.app.winfo_screenwidth()}x{self.app.winfo_screenheight()}")
         self.app.title("Salary-slip Generator")
-        self.database = {'Somaiya':['Teaching','Non-Teaching','Temporary'],'SVV':['svv']}
+        self.database = {'Somaiya':['Teaching','NonTeaching','Temporary'],'SVV':['svv']}
         self.children = {'login':self.Login(self,self.app),'fileinput':self.FileInput(self,self.app),'landing':self.Landing(self,self.app),'interface':self.Interface(self,self.app),'DB':self.DBFetch(self,self.app),'upload':self.DBUpload(self,self.app)}
 
         self.children['login'].appear()
@@ -185,8 +181,8 @@ class App():
             self.available_data()
 
         def available_data(self):
-            data = Database( host="localhost",user="root", password="1234", database="somaiya_salary").showTables().get(self.toggle_institute.get().lower())
-            data = data.get(self.toggle_type.get().lower()) if data else None
+            data = Database( host="localhost",user="root", password="1234", database="somaiya_salary").showTables().get(self.chosen.get().lower())
+            data = data.get(self.type.get().lower()) if data else None
 
             if data and len(data)>0:
                 self.options = data
@@ -196,11 +192,11 @@ class App():
 
                 self.entry_year.set(list(data)[0])
                 self.entry_month.set(data[list(data)[0]][0])
-                self.prev_type =  self.toggle_type.get()
-                self.prev_insti = self.toggle_institute.get()
+                self.prev_type =  self.type.get()
+                self.prev_insti = self.chosen.get()
             else:
-                self.toggle_institute.set(self.prev_insti)
-                self.toggle_type.set(self.prev_type)
+                self.chosen.set(self.prev_insti)
+                self.chosen.set(self.prev_type)
                 self.changeType(event=None)
                 tkmb.showwarning("Error", "No Data found!")
 
@@ -746,6 +742,9 @@ class App():
             self.upload_to_db = ctk.CTkButton(master=self.frame , text="Upload to DB",command=self.upload, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.upload_to_db.pack(pady=10)
 
+            self.deload_from_db = ctk.CTkButton(master=self.frame , text="Delete from DB",command=self.deload, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
+            self.deload_from_db.pack(pady=10)
+
             self.button_back_to_interface = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_view, fg_color=custom_color_scheme["button_color"], font=("Helvetica", 16))
             self.button_back_to_interface.pack(pady=12, padx=10)
 
@@ -759,9 +758,34 @@ class App():
             self.text_excel.configure(xscrollcommand=x_scrollbar.set,yscrollcommand=y_scrollbar.set)
             self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
 
+            self.changeType(event=None)
 
-        def uploadTime(self):
-            self.outer.children['upload'].appear()
+        def deload(self):
+            database = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
+            if self.year.get():
+                try:
+                    year = int(self.year.get())
+                except ValueError:
+                    tkmb.showwarning("Alert","Incorrect year format")
+            else:
+                tkmb.showwarning("Alert","Please enter year")
+                return 
+            
+            month = self.month.get()
+            sheet = self.sheet.get()
+            insti = self.chosen.get().lower()
+            type = self.type.get().lower()
+
+            if year and sheet and month and insti and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ insti}, Type: {type} \n Are you sure you want to clear this data from DB?"):
+
+                if messagebox.askyesnocancel("Warning","Once data is dropped it cannot be retrieved. Are you sure about this?") and messagebox.askyesnocancel("Warning","Are you sure about this again?"):
+                    if database.dropTable(insti,type,month,year):
+                        tkmb.showinfo("Alert", "Table dropped")
+                    else:
+                        tkmb.showinfo("Alert", "Table dropped (Table does not exists)")
+
+                 
+
 
         def upload(self):
             database = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
@@ -774,21 +798,30 @@ class App():
                 tkmb.showwarning("Alert","Please enter year")
                 return 
             
-            year = self.year.get()
             month = self.month.get()
             sheet = self.sheet.get()
-            insti = self.toggle_institute.get()
-            type = self.toggle_type.get()
+            insti = self.chosen.get().lower()
+            type = self.type.get().lower()
+
             if year and sheet and month and insti and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ insti}, Type: {type} \n Are you sure details are correct?"):
 
                 if database.createData(month,year,self.data.columns,insti,type):
                     tkmb.showinfo("Alert", "Table created")
+
+                    res = database.updateData(self.data,month,year,insti,type)
+                    if res is not None:
+                        tkmb.showinfo("Upload","Data was successfully")
+                    elif res==-1:
+                        tkmb.showinfo("Upload","Columns do not match")
+                    else:
+                        tkmb.showwarning('Error','Some error occured')
+
                 else:
                     response = messagebox.askyesnocancel("Table exists", "This data already exists. Would you like to update it?")
 
                     if response:
                         res = database.updateData(self.data,month,year,insti,type)
-                        if res is not None:
+                        if res is not None and res!=-1:
                             tkmb.showinfo("Upload","Data was successfully")
                         elif res==-1:
                             tkmb.showinfo("Upload","Columns do not match")
@@ -820,9 +853,9 @@ class App():
             self.outer.children['fileinput'].appear()
 
         def changeType(self,event):
-            institute = self.toggle_institute.get()
+            institute = self.chosen.get()
             self.toggle_type.configure(values = list(self.outer.database[institute]))
-            self.toggle_type.set(list(self.outer.database[institute])[0])
+            self.type.set(list(self.outer.database[institute])[0])
 
         def view_excel(self):
             self.text_excel.delete(1.0, tk.END)

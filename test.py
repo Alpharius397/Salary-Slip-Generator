@@ -36,15 +36,29 @@ class Database():
             query =','.join([f"{col}='{new[col]}'" for col in new if col!='HR_EMP_CODE'])
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
+
             try:
                 cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
-                print("0")
+
             except mysql.connector.errors.IntegrityError as e:
                 cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE HR_EMP_CODE={i}')
-                print(e)
+
+            except mysql.connector.errors.ProgrammingError as f:
+                return -1
             self.db.commit()
         return 1
             
+    def dropTable(self,insti:str,type:str,month,year) -> None:
+        cursor = self.db.cursor()
+
+        try:
+            cursor.execute(f'drop table {insti}_{type}_{month}_{year}')
+            self.db.commit()
+
+            return 1
+        except mysql.connector.errors.ProgrammingError as f:
+            return 0
+        
 
     # shows all tables
     def showTables(self) -> dict:
@@ -64,7 +78,6 @@ class Database():
             return None
 
         temp = cursor.fetchall()
-        print(temp)
         year = [table[0].split('_') for table in temp]
 
         for parts in year:
