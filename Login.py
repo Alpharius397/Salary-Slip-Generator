@@ -13,10 +13,11 @@ from test import dataRefine,Database
 
 # Set custom appearance and color theme
 ctk.set_appearance_mode("light")  # The custom color theme will be applied manually
+
 class ExcelFunc():
-    def generate_pdf(self,employee_data,month,year,type,insti):
+    def generate_pdf(self,employee_data,month,year,type,chosen):
         try:
-            pdf_file = f"{insti}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
+            pdf_file = f"{chosen}_{type}_{month}_{year}_employee_{employee_data[0]}.pdf"
             doc = SimpleDocTemplate(pdf_file, pagesize=letter)
             elements = []
 
@@ -132,19 +133,18 @@ class ExcelFunc():
         dataRefine(self.data)
         self.view_excel()
 
-    def load_database(self,month,year,insti,type):
+    def load_database(self,month,year,chosen,type):
         db = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
-        self.data=db.fetchAll(month,year,insti,type)
+        self.data=db.fetchAll(month,year,chosen,type)
         db.endDatabase()
         self.view_excel()
 
     def bulk_print_pdfs(self):
         for i in self.data['HR_EMP_CODE'].values:
             search = self.data[self.data['HR_EMP_CODE']==i]
-            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen)
 
         tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
-
 
     def extract_data(self):
         employee_id = self.entry_id.get()
@@ -152,11 +152,10 @@ class ExcelFunc():
         search = self.data[self.data['HR_EMP_CODE']==employee_id]
 
         if search.shape[0]:
-            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen)
             tkmb.showinfo("Single Print", "PDF generation completed.")
         else:
             tkmb.showwarning("Error", "Employee ID not found.")
-
 
     def copy_row_to_clipboard(self):
         employee_id = self.entry_id.get()
@@ -168,6 +167,13 @@ class ExcelFunc():
             tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
         else:
             tkmb.showwarning("Error", "Employee ID not found.")
+
+    def bulk_print_pdfs(self):
+        for i in self.data['HR_EMP_CODE'].values:
+            search = self.data[self.data['HR_EMP_CODE']==str(i)]
+            self.generate_pdf(search.values[0],self.month,self.year,self.type,self.chosen)
+
+        tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
 
 class BaseTemplate():
 
@@ -335,16 +341,16 @@ class App():
         def getData(self):
             month = self.entry_month.get()
             year = self.entry_year.get()
-            insti = self.toggle_institute.get().lower()
+            chosen = self.toggle_institute.get().lower()
             type = self.toggle_type.get().lower()
 
-            print(month,year,insti,type)
+            print(month,year,chosen,type)
             self.outer.children['DB'].month = month
             self.outer.children['DB'].year = year
-            self.outer.children['DB'].insti = insti
+            self.outer.children['DB'].chosen = chosen
             self.outer.children['DB'].type = type
-            self.outer.children['DB'].load_database(month,year,insti,type)
-            self.outer.children['DB'].label_date.configure(text=f"{insti.capitalize()}-{type.capitalize()}-{month.capitalize()}-{year.upper()}")
+            self.outer.children['DB'].load_database(month,year,chosen,type)
+            self.outer.children['DB'].label_date.configure(text=f"{chosen.capitalize()}-{type.capitalize()}-{month.capitalize()}-{year.upper()}")
             self.outer.children['DB'].appear()
 
 
@@ -435,41 +441,9 @@ class App():
             else:
                 tkmb.showwarning("Error", "No data found")
 
-        def extract_data(self):
-            employee_id = self.entry_id.get()
-            month = self.month.get()
-            year = self.year.get()
-            type = self.toggle_type.get().lower()
-            insti = self.toggle_institute.get().lower()
-
-            search = self.data[self.data['HR_EMP_CODE']==str(employee_id)]
-            if search.shape[0]:
-                self.generate_pdf(search.values[0],month,year,type,insti)
-                tkmb.showinfo("PDF Generated", f"PDF generated: {insti}_{type}_{month}_{year}_employee_{employee_id}.pdf")
-            else:
-                tkmb.showwarning("Error", "Employee ID not found.")
-
-
-        def copy_row_to_clipboard(self):
-            employee_id = self.entry_id.get()
-
-            search = self.data[self.data['HR_EMP_CODE']==employee_id]
-
-            if search.shape[0]:
-                pyperclip.copy(','.join(search.values[0]))
-                tkmb.showinfo("Copy Row", "Employee data copied to clipboard.")
-            else:
-                tkmb.showwarning("Error", "Employee ID not found.")
 
         def back_to_landing(self):
             self.outer.children['landing'].appear()
-
-        def changeType(self,event):
-            institute = self.toggle_institute.get()
-
-            self.toggle_type.configure(values = list(self.outer.database[institute]))
-            self.toggle_type.set(list(self.outer.database[institute])[0])
-
 
         def select_file(self):
             file_path = filedialog.askopenfilename(filetypes=[("Excel Files", ".xlsx;.xls")])
@@ -482,13 +456,6 @@ class App():
                 self.changeSheets(event=None)
                 self.changeView()
 
-        def bulk_print_pdfs(self):
-            for i in self.data['HR_EMP_CODE'].values:
-                search = self.data[self.data['HR_EMP_CODE']==str(i)]
-                self.generate_pdf(search.values[0],self.month,self.year,self.type,self.insti)
-
-            tkmb.showinfo("Bulk Print", "Bulk PDF generation completed.")
-
 
     class DBFetch(BaseTemplate,ExcelFunc):
         def __init__(self,outer,master):
@@ -499,7 +466,7 @@ class App():
             self.month = "None"
             self.year = "None"
             self.type = "None"
-            self.insti = "None"
+            self.chosen = "None"
             self.data = []
             self.label_date = ctk.CTkLabel(master=self.frame , text=f"{self.month.capitalize()}-{self.year.upper()}", text_color=custom_color_scheme["text_color"], font=("Helvetica", 16))
             self.label_date.pack()
@@ -597,6 +564,7 @@ class App():
 
             self.changeType(event=None)
 
+
         def deload(self):
             database = Database(host="localhost", user="root", password="1234",database="somaiya_salary")
             if self.year.get():
@@ -610,13 +578,13 @@ class App():
             
             month = self.month.get()
             sheet = self.sheet.get()
-            insti = self.chosen.get().lower()
+            chosen = self.chosen.get().lower()
             type = self.type.get().lower()
 
-            if year and sheet and month and insti and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ insti}, Type: {type} \n Are you sure you want to clear this data from DB?"):
+            if year and sheet and month and chosen and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ chosen}, Type: {type} \n Are you sure you want to clear this data from DB?"):
 
                 if messagebox.askyesnocancel("Warning","Once data is dropped it cannot be retrieved. Are you sure about this?") and messagebox.askyesnocancel("Warning","Are you sure about this again?"):
-                    if database.dropTable(insti,type,month,year):
+                    if database.dropTable(chosen,type,month,year):
                         tkmb.showinfo("Alert", "Table dropped")
                     else:
                         tkmb.showinfo("Alert", "Table dropped (Table does not exists)")
@@ -637,15 +605,15 @@ class App():
             
             month = self.month.get()
             sheet = self.sheet.get()
-            insti = self.chosen.get().lower()
+            chosen = self.chosen.get().lower()
             type = self.type.get().lower()
 
-            if year and sheet and month and insti and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ insti}, Type: {type} \n Are you sure details are correct?"):
+            if year and sheet and month and chosen and type and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{ chosen}, Type: {type} \n Are you sure details are correct?"):
 
-                if database.createData(month,year,self.data.columns,insti,type):
+                if database.createData(month,year,self.data.columns,chosen,type):
                     tkmb.showinfo("Alert", "Table created")
 
-                    res = database.updateData(self.data,month,year,insti,type)
+                    res = database.updateData(self.data,month,year,chosen,type)
                     if res is not None:
                         tkmb.showinfo("Upload","Data was successfully")
                     elif res==-1:
@@ -657,7 +625,7 @@ class App():
                     response = messagebox.askyesnocancel("Table exists", "This data already exists. Would you like to update it?")
 
                     if response:
-                        res = database.updateData(self.data,month,year,insti,type)
+                        res = database.updateData(self.data,month,year,chosen,type)
                         if res is not None and res!=-1:
                             tkmb.showinfo("Upload","Data was successfully")
                         elif res==-1:
