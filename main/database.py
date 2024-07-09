@@ -150,10 +150,64 @@ class Database():
 
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
-
-    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace(' ','').replace('\n','').replace('/','_or').replace('%','').replace('&','and').replace(',','').replace(':','')
+    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
 
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
+
+# tries to find columns based on the frequency of word in column
+def mapping(pd_columns:pd.DataFrame,columns:str) -> dict[str,str]:
+
+    check_columns = columns.lower().split(' ')
+
+    memo=defaultdict(lambda: {'count':0,'col':None})
+    to_check = [col for col in pd_columns if any(word in col for word in check_columns)]
+
+    for col in to_check:
+        for check in check_columns:
+            asq = 0
+            
+            if check in col:
+                asq += 1
+
+        if memo[columns]['count']<asq:
+            memo[columns]['col']=col
+            memo[columns]['count']=asq
+
+    return {columns:memo[columns]['col']}
+
+# checks for word and returns the value of column (that matches word) if present, else None
+def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
+    memo = mapping(pd_columns,col)
+
+    if col in memo and memo[col]:
+        return pd_Data[memo[col]].values[0]
+    else: 
+        return 'None'
+    
+"""
+Optimized Gemini Code
+
+import pandas as pd
+from fuzzywuzzy import fuzz
+
+def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFrame) -> str:
+
+    col_lower = col.lower() 
+
+    filtered_cols = [c for c in pd_columns if any(w in c.lower() for w in col_lower.split())]
+
+    if filtered_cols:
+
+        distances = {c: fuzz.ratio(col_lower, c.lower()) for c in filtered_cols}
+
+        best_match = max(distances, key=distances.get)
+
+        return pd_data[best_match].values[0]
+
+    else:
+        return 'None'
+        
+"""
 
 # Must do these 3 steps
 """pde = pd.read_excel("front/KJSIT_MAY_2023.xlsx")
