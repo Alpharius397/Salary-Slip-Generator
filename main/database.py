@@ -160,13 +160,13 @@ def mapping(pd_columns:pd.DataFrame,columns:str) -> dict[str,str]:
     check_columns = columns.lower().split(' ')
 
     memo=defaultdict(lambda: {'count':0,'col':None})
-    to_check = [col for col in pd_columns if any(word in col for word in check_columns)]
+    to_check = [col for col in pd_columns if any(word in col.lower() for word in check_columns)]
 
     for col in to_check:
         for check in check_columns:
             asq = 0
             
-            if check in col:
+            if check in col.lower():
                 asq += 1
 
         if memo[columns]['count']<asq:
