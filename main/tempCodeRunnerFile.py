@@ -1,0 +1,1 @@
+mail.split('_')[-1].split('.pdf')[0]

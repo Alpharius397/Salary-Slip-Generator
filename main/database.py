@@ -17,6 +17,8 @@ class Database():
                 self.status = True
             except:
                 print('No connection')
+
+        self.month_order = {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sept":9, "oct":10, "nov":11, "dec":12}
     
     # create a table from month and year if it does not exist
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
@@ -37,10 +39,11 @@ class Database():
     # updates existing data or inserts new data
     def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
         cursor = self.db.cursor()
+        id = mapping(data,'hr emp code')
 
-        for i in data['HR_EMP_CODE']:
-            new = {col:data[(data['HR_EMP_CODE']==i)][[col]].iloc[0,0] for col in data.columns}
-            query =','.join([f"{col}='{new[col]}'" for col in new if col!='HR_EMP_CODE'])
+        for i in data[id]:
+            new = {col:data[data[id]==i][col].values[0] for col in data.columns}
+            query =','.join([f"{col}='{new[col]}'" for col in new if col!=id])
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
 
@@ -48,11 +51,10 @@ class Database():
                 cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
 
             except mysql.connector.errors.IntegrityError as e:
-                cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE HR_EMP_CODE={i}')
+                cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE {id}={i}')
 
             except mysql.connector.errors.ProgrammingError as f:
-                print(f)
-                return -1
+                return 0
 
             self.db.commit()
         return 1
@@ -97,7 +99,8 @@ class Database():
                 if j not in memo[i]:
                     memo[i][j] = defaultdict(list)
 
-                memo[i][j][l] += [k] if k not in memo[i][j][l] else memo[i][j][l]
+                memo[i][j][l] += [k] if k not in memo[i][j][l] else []
+                memo[i][j][l] = sorted(memo[i][j][l],key=lambda x:self.month_order[x])
             else:
                 print(f"Unexpected table name format: {'_'.join(parts)}")
 
@@ -115,20 +118,6 @@ class Database():
         
         return [col_data[0] for col_data in cursor.fetchall()]
 
-
-    # fetches data for That guy from table month_year
-    def fetchThat(self,month:str,year:int,emp_id:int,insti:str,type:str) -> pd.DataFrame:
-        cursor = self.db.cursor(buffered=True)
-
-        try:
-            cursor.execute(f" SELECT * FROM {insti}_{type}_{month}_{year} where HR_EMP_CODE={emp_id}")
-        except:
-            print('MySQL Error Occured!')
-            return None
-        
-        columns = self.getColumns(month,year,insti,type)
-        
-        return pd.DataFrame(cursor.fetchall(),columns=columns)
 
     # fetches all data from table month_year  
     def fetchAll(self,month:str,year:int,insti:str,type:str) -> pd.DataFrame:
@@ -173,14 +162,14 @@ def mapping(pd_columns:pd.DataFrame,columns:str) -> dict[str,str]:
             memo[columns]['col']=col
             memo[columns]['count']=asq
 
-    return {columns:memo[columns]['col']}
+    return memo[columns]['col']
 
 # checks for word and returns the value of column (that matches word) if present, else None
 def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
-    memo = mapping(pd_columns,col)
+    pred_col = mapping(pd_columns,col)
 
-    if col in memo and memo[col]:
-        return pd_Data[memo[col]].values[0]
+    if pred_col is not None:
+        return pd_Data[pred_col].values[0]
     else: 
         return 'None'
     
@@ -210,7 +199,7 @@ def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFram
 """
 
 # Must do these 3 steps
-"""pde = pd.read_excel("front/KJSIT_MAY_2023.xlsx")
+pde = pd.read_excel("Excel-to-Pdf-Generator\sample_data\Sample sheet for salary calculation and salary slip (1).xlsx")
 dataRefine(pde)
 
 b = Database(
@@ -218,4 +207,7 @@ b = Database(
         user="root",
         password="1234",
         database="somaiya_salary"
-    )"""
+    )
+
+print(b.showTables())
+

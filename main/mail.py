@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase 
 from email import encoders 
 
-def sendMail(toAddr,month,year,pdf_location):
+def sendMail(toAddr,month,year,pdf_location,filename):
 
     fromaddr = "rajjm397@gmail.com"
 
@@ -18,7 +18,6 @@ def sendMail(toAddr,month,year,pdf_location):
 
     msg.attach(MIMEText(body, 'plain')) 
 
-    filename = pdf_location.split('/')[-1]
     with open(pdf_location, "rb") as attachment:
 
         p = MIMEBase('application', 'octet-stream') 
