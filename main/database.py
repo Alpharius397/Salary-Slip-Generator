@@ -197,7 +197,7 @@ def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFram
         
 """
 
-# Must do these 3 steps
+"""# Must do these 3 steps
 pde = pd.read_excel("Excel-to-Pdf-Generator\sample_data\Sample sheet for salary calculation and salary slip (1).xlsx")
 dataRefine(pde)
 
@@ -208,5 +208,5 @@ b = Database(
         database="somaiya_salary"
     )
 
-print(b.showTables())
+print(b.showTables())"""
 
