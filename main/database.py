@@ -18,7 +18,6 @@ class Database():
             except:
                 print('No connection')
 
-        self.month_order = {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sept":9, "oct":10, "nov":11, "dec":12}
     
     # create a table from month and year if it does not exist
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
@@ -100,7 +99,7 @@ class Database():
                     memo[i][j] = defaultdict(list)
 
                 memo[i][j][l] += [k] if k not in memo[i][j][l] else []
-                memo[i][j][l] = sorted(memo[i][j][l],key=lambda x:self.month_order[x])
+
             else:
                 print(f"Unexpected table name format: {'_'.join(parts)}")
 
