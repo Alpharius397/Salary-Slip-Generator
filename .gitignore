@@ -1,3 +1,5 @@
 *.ipynb
 /build
 *.spec
+*.html
+generate_pdf.py
