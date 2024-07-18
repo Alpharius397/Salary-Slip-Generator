@@ -22,9 +22,10 @@ class Database():
     # create a table from month and year if it does not exist
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
         cursor = self.db.cursor()
+        code_col = mapping(columns='hr emp code',pd_columns=columns)
 
         try:
-            sql = f"CREATE TABLE {insti}_{type}_{month}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col=='HR_EMP_CODE' else col + ' VARCHAR(225)' for col in columns])})"
+            sql = f"CREATE TABLE {insti}_{type}_{month}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
             print('Table Created')
@@ -143,7 +144,7 @@ def dataRefine(data:pd.DataFrame) -> None:
     data.rename(columns={col:rename(col) for col in data.columns},inplace=True)
 
 # tries to find columns based on the frequency of word in column
-def mapping(pd_columns:pd.DataFrame,columns:str) -> dict[str,str]:
+def mapping(pd_columns:list[str],columns:str) -> dict[str,str]:
 
     check_columns = columns.lower().split(' ')
 
@@ -206,7 +207,7 @@ b = Database(
         user="root",
         password="1234",
         database="somaiya_salary"
-    )
+    )"""
 
-print(b.showTables())"""
+
 
