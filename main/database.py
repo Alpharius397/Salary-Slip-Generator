@@ -39,7 +39,7 @@ class Database():
     # updates existing data or inserts new data
     def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
         cursor = self.db.cursor()
-        id = mapping(data,'hr emp code')
+        id = mapping(data.columns,'hr emp code')
 
         for i in data[id]:
             new = {col:data[data[id]==i][col].values[0] for col in data.columns}
