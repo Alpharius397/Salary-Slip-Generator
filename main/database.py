@@ -41,6 +41,9 @@ class Database():
         cursor = self.db.cursor()
         id = mapping(data.columns,'hr emp code')
 
+        if sorted(self.getColumns(month,year,insti,type))!=sorted(list(data.columns)):
+            return -1
+        
         for i in data[id]:
             new = {col:data[data[id]==i][col].values[0] for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!=id])
