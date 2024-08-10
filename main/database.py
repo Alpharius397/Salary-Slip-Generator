@@ -200,7 +200,6 @@ def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFram
         return 'None'
         
 """
-
 """# Must do these 3 steps
 pde = pd.read_excel("Excel-to-Pdf-Generator\sample_data\Sample sheet for salary calculation and salary slip (1).xlsx")
 dataRefine(pde)
