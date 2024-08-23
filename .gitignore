@@ -3,3 +3,5 @@
 *.spec
 *.html
 generate_pdf.py
+/dist
+*.exe
