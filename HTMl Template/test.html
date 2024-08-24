@@ -7,22 +7,30 @@
             width: 800px;
             margin: 0 auto;
         }
-
         .header, .footer-note {
             text-align: center;
             margin-bottom: 10px;
         }
-
         .header p {
             margin: 5px 0;
         }
-
+        .net-pay, .payment-details {
+            margin-bottom: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .net-pay td, .payment-details td  {
+            border: none;
+            padding: 5px;
+        }
+        .net-pay, .payment-details {
+            border: 1px solid black;
+        }
         .section-title {
             text-align: center;
             margin: 20px 0 5px;
             font-weight: bold;
         }
-
         .footer-note {
             text-align: center;
             margin-top: 10px;
@@ -56,6 +64,7 @@
 </head>
 <body>
     <div class="header">
+
         <table class="title">
             <tr>
                 <td>
@@ -156,6 +165,7 @@
         <p>Payslip for the month of <span>&lt;month&gt;</span> <span>&lt;year&gt;</span></p>
     </div>
 
+    
     <table class="table">
         <tr><td>
             <table class="section left">
@@ -214,156 +224,152 @@
 
     <table class="table">
         <tr>
+
             <td>
-                <table class="section left"> 
-                    <tr>
-                        <td>Total Days: <span>&lt;total_days&gt;</span></td>
-                        
-                    </tr>
-                    <tr>
-                        <td>PH/WEO: <span>&lt;PH_WEO&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Sick Leave: <span>&lt;sick_leave&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Casual Leave: <span>&lt;casual_leave&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Balance SL: <span>&lt;balance_SL&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Balance CL: <span>&lt;balance_CL&gt;</span></td>
-                    </tr>
-                </table>
-            </td>
-            <td>
-                <table class="section right">
-                    <tr>
-                        <td>Days Present: <span>&lt;days_present&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>LWP/Absent: <span>&lt;LWP&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Earned Leave: <span>&lt;earned_leave&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Winter Vacation Leave: <span>&lt;winter_leave&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Balance PL: <span>&lt;balance_PL&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Balance LV8: <span>&lt;balance_LV8&gt;</span></td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
+        <table class="section left"> 
+                <tr>
+                    <td>Total Days: <span>&lt;total_days&gt;</span></td>
+                    
+                </tr>
+                <tr>
+                    <td>PH/WEO: <span>&lt;PH_WEO&gt;</span></td>
+             
+                </tr>
+                <tr>
+                    <td>Sick Leave: <span>&lt;sick_leave&gt;</span></td>
+                
+                </tr>
+                <tr>
+                    <td>Casual Leave: <span>&lt;casual_leave&gt;</span></td>
+                 
+                </tr>
+                <tr>
+                    <td>Balance SL: <span>&lt;balance_SL&gt;</span></td>
+                  
+                </tr>
+                <tr>
+                    <td>Balance CL: <span>&lt;balance_CL&gt;</span></td>
+              
+                </tr>
+        </table>
+    </td>
+<td>
+        <table class="section right">
+            <tr>
+                <td>Days Present: <span>&lt;days_present&gt;</span></td>
+            </tr>
+            <tr>
+                <td>LWP/Absent: <span>&lt;LWP&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Earned Leave: <span>&lt;earned_leave&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Winter Vacation Leave: <span>&lt;winter_leave&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Balance PL: <span>&lt;balance_PL&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Balance LV8: <span>&lt;balance_LV8&gt;</span></td>
+            </tr>
+        </table>
+    </td>
+    </tr>
     </table>
     
     <div class="section-title">Earnings and Deductions</div>
-
     <table class="table">
         <tr>
-            <td>   
-                <table class="section left">
-                    <tr>
-                        <td colspan="2">Earnings</td>
-                    </tr>
-                    <tr>
-                        <td>Basic Salary</td>
-                        <td><span>&lt;basic&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>HRA</td>
-                        <td><span>&lt;HRA&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>CLA</td>
-                        <td><span>&lt;CLA&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>TA</td>
-                        <td><span>&lt;TA&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Dearness Allowance</td>
-                        <td><span>&lt;dearness&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Gracie Pay</td>
-                        <td><span>&lt;grade_pay&gt;</span></td>
-                    </tr>
-                </table>
-            </td>
-            <td>
-            <table class="section right">
+        <td>   
+        <table class="section left">
                 <tr>
-                    <td colspan="2">Deductions</td>
+                    <td colspan="2">Earnings</td>
                 </tr>
                 <tr>
-                    <td>Provident Fund</td>
-                    <td><span>&lt;provident&gt;</span></td>
+                    <td>Basic Salary</td>
+                    <td><span>&lt;basic&gt;</span></td>
                 </tr>
                 <tr>
-                    <td>Profession Tax</td>
-                    <td><span>&lt;profession&gt;</span></td>
+                    <td>HRA</td>
+                    <td><span>&lt;HRA&gt;</span></td>
                 </tr>
                 <tr>
-                    <td>TDS</td>
-                    <td><span>&lt;TDS&gt;</span></td>
+                    <td>CLA</td>
+                    <td><span>&lt;CLA&gt;</span></td>
                 </tr>
                 <tr>
-                    <td>Any Other Deduction 34</td>
-                    <td><span>&lt;other_ded_34&gt;</span></td>
+                    <td>TA</td>
+                    <td><span>&lt;TA&gt;</span></td>
                 </tr>
                 <tr>
-                    <td>L1C</td>
-                    <td><span>&lt;LIC&gt;</span></td>
+                    <td>Dearness Allowance</td>
+                    <td><span>&lt;dearness&gt;</span></td>
                 </tr>
                 <tr>
-                    <td>KJSOMAIYA CREDIT SOC1TY LTD</td>
-                    <td><span>&lt;KJS_CREDIT&gt;</span></td>
+                    <td>Gracie Pay</td>
+                    <td><span>&lt;grade_pay&gt;</span></td>
                 </tr>
-                </table>
-            
-            </td>
-        </tr>
         </table>
+    </td><td>
+        <table class="section right">
+            <tr>
+                <td colspan="2">Deductions</td>
+            </tr>
+            <tr>
+                <td>Provident Fund</td>
+                <td><span>&lt;provident&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Profession Tax</td>
+                <td><span>&lt;profession&gt;</span></td>
+            </tr>
+            <tr>
+                <td>TDS</td>
+                <td><span>&lt;TDS&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Any Other Deduction 34</td>
+                <td><span>&lt;other_ded_34&gt;</span></td>
+            </tr>
+            <tr>
+                <td>L1C</td>
+                <td><span>&lt;LIC&gt;</span></td>
+            </tr>
+            <tr>
+                <td>KJSOMAIYA CREDIT SOC1TY LTD</td>
+                <td><span>&lt;KJS_CREDIT&gt;</span></td>
+            </tr>
+            </table>
+        
+        </td>
+    </tr>
+    </table>
 
     <table class="table">
         <tr><td>
         <table class="section left">
-                    <tr>
-                        <td>Total Earnings: <span>&lt;TOTAL_EARNINGS&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>Net Pay: <span>&lt;NET_PAY&gt;</span></td>
-                    </tr>
-                    <tr>
-                        <td>RUPEES: <span>&lt;NET_PAY_IN_WORDS&gt;</span></td>
-                    </tr>
-            </table>
-        </td><td>
-        <table class="section right">
+            <tr>
+                <td>Total Earnings: <span>&lt;TOTAL_EARNINGS&gt;</span></td>
+            </tr>
+            <tr>
+                <td>Net Pay: <span>&lt;NET_PAY&gt;</span></td>
+            </tr>
+            <tr>
+                <td>RUPEES: <span>&lt;NET_PAY_IN_WORDS&gt;</span></td>
+            </tr>
+        </table>
+        </td>
+        <td>
+            <table class="section right">
                 <tr>
                     <td>Total Deductions: <span>&lt;TOTAL_DEDUCTIONS&gt;</span></td>
                 </tr>
-
+                <tr>
+                    <td><p style='color:white'>hidden</p></td>
+                </tr>
             </table>
-        </td></tr>
-    </table>
-    <table class="net-pay">
-        <tr>
-            <td>Total Earnings: <span>&lt;TOTAL_EARNINGS&gt;</span></td>
-            <td>Total Deductions: <span>&lt;TOTAL_DEDUCTIONS&gt;</span></td>
-        </tr>
-        <tr>
-            <td colspan="2">Net Pay: <span>&lt;NET_PAY&gt;</span></td>
-        </tr>
-        <tr>
-            <td colspan="2">RUPEES: <span>&lt;NET_PAY_IN_WORDS&gt;</span></td>
+        </td>
         </tr>
     </table>
 
