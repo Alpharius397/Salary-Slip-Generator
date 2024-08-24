@@ -1,7 +1,8 @@
 *.ipynb
 /build
 *.spec
-*.html
+main/*.html
 generate_pdf.py
 /dist
 *.exe
+SALARY SLIP.xlsx
