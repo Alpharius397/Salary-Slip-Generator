@@ -6,3 +6,5 @@ generate_pdf.py
 /dist
 *.exe
 SALARY SLIP.xlsx
+*.pdf
+main/pdfs
