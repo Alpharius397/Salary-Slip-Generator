@@ -51,13 +51,10 @@
             margin-bottom: 20px;
         }
 
-        .section{
-            flex-grow: 1;
-        }
-
         .section td{
             padding: 5px;
             width: 70%;
+            height: 100%;
         }
 
     </style>
@@ -162,7 +159,7 @@
                 </td>
             </tr>
         </table>
-        <p>Payslip for the month of <span>&lt;month&gt;</span> <span>&lt;year&gt;</span></p>
+        <p>Payslip for the month of <span>{month}</span> <span>{year}</span></p>
     </div>
 
     
@@ -170,113 +167,55 @@
         <tr><td>
             <table class="section left">
                 <tr>
-                    <td>Emp Code: <span>&lt;emp_code&gt;</span></td>
+                    <td>Emp Code: <span>{emp_code}</span></td>
                 </tr>
                 <tr>
-                    <td>Branch: Sion</td>
+                    <td>Branch: <span>Sion</span></td>
                 </tr>
                 <tr>
-                    <td>Designation: <span>&lt;designation&gt;</span></td>
+                    <td>Designation: <span>{designation}</span></td>
                 </tr>
                 <tr>
-                    <td>PAN: <span>&lt;PAN&gt;</span></td>
+                    <td>PAN: <span>{PAN}</span></td>
                 </tr>
+                
                 <tr>
-                    <td>Retention Deduction%: <span>&lt;retent&gt;</span></td>
+                    <td>Date Of Joining: <span>{date_of_joining}</span></td>
                 </tr>
+                
                 <tr>
-                    <td>Date Of Joining: <span>&lt;date_of_joining&gt;</span></td>
+                    <td>Salary A/C No.: <span>{ac. no.}</span></td>
                 </tr>
-                <tr>
-                    <td>Grade: <span>&lt;grade&gt;</span></td>
-                </tr>
+                
         </table>
         </td>
 
         <td>
         <table class="section right">
             <tr>
-                <td>Name: <span>&lt;NAME&gt;</span></td>
+                <td>Name: <span>{NAME}</span></td>
             </tr>
             <tr>
-                <td>Department: <span>&lt;department&gt;</span></td>
+                <td>Department: <span>{department}</span></td>
             </tr>
             <tr>
-                <td>PF No.: <span>&lt;pf_no&gt;</span></td>
+                <td>PF No.: <span>{pf_no}</span></td>
             </tr>
             <tr>
-                <td>Scale or Consolidated: <span>&lt;scale&gt;</span></td>
+                <td>UAN No: <span>{UAN}</span></td>
             </tr>
             <tr>
-                <td>UAN No: <span>&lt;UAN&gt;</span></td>
+                <td>Date of Joining (Group): <span>{date_grp}</span></td>
             </tr>
             <tr>
-                <td>Date of Joining (Group): <span>&lt;date_grp&gt;</span></td>
+                <td>Total Days Present: <span>{total_days}</span></td>
             </tr>
-            <tr>
-                <td style="color:white">hidden</td>
-            </tr>
-            </table>
+        </table>
 
         </td>
         </tr>
     </table>
 
-    <table class="table">
-        <tr>
-
-            <td>
-        <table class="section left"> 
-                <tr>
-                    <td>Total Days: <span>&lt;total_days&gt;</span></td>
-                    
-                </tr>
-                <tr>
-                    <td>PH/WEO: <span>&lt;PH_WEO&gt;</span></td>
-             
-                </tr>
-                <tr>
-                    <td>Sick Leave: <span>&lt;sick_leave&gt;</span></td>
-                
-                </tr>
-                <tr>
-                    <td>Casual Leave: <span>&lt;casual_leave&gt;</span></td>
-                 
-                </tr>
-                <tr>
-                    <td>Balance SL: <span>&lt;balance_SL&gt;</span></td>
-                  
-                </tr>
-                <tr>
-                    <td>Balance CL: <span>&lt;balance_CL&gt;</span></td>
-              
-                </tr>
-        </table>
-    </td>
-<td>
-        <table class="section right">
-            <tr>
-                <td>Days Present: <span>&lt;days_present&gt;</span></td>
-            </tr>
-            <tr>
-                <td>LWP/Absent: <span>&lt;LWP&gt;</span></td>
-            </tr>
-            <tr>
-                <td>Earned Leave: <span>&lt;earned_leave&gt;</span></td>
-            </tr>
-            <tr>
-                <td>Winter Vacation Leave: <span>&lt;winter_leave&gt;</span></td>
-            </tr>
-            <tr>
-                <td>Balance PL: <span>&lt;balance_PL&gt;</span></td>
-            </tr>
-            <tr>
-                <td>Balance LV8: <span>&lt;balance_LV8&gt;</span></td>
-            </tr>
-        </table>
-    </td>
-    </tr>
-    </table>
     
     <div class="section-title">Earnings and Deductions</div>
     <table class="table">
@@ -288,28 +227,42 @@
                 </tr>
                 <tr>
                     <td>Basic Salary</td>
-                    <td><span>&lt;basic&gt;</span></td>
+                    <td><span>{basic}</span></td>
+                </tr>
+                <tr>
+                    <td>Present Basic Salary</td>
+                    <td><span>{present_basic}</span></td>
+                </tr>
+                <tr>
+                    <td>DP / Gp</td>
+                    <td><span>{dp_gp}</span></td>
+                </tr>
+                <tr>
+                    <td>DA</td>
+                    <td><span>{da}</span></td>
                 </tr>
                 <tr>
                     <td>HRA</td>
-                    <td><span>&lt;HRA&gt;</span></td>
+                    <td><span>{HRA}</span></td>
                 </tr>
                 <tr>
                     <td>CLA</td>
-                    <td><span>&lt;CLA&gt;</span></td>
+                    <td><span>{CLA}</span></td>
                 </tr>
                 <tr>
                     <td>TA</td>
-                    <td><span>&lt;TA&gt;</span></td>
+                    <td><span>{TA}</span></td>
                 </tr>
                 <tr>
-                    <td>Dearness Allowance</td>
-                    <td><span>&lt;dearness&gt;</span></td>
+                    <td>Special Allowance</td>
+                    <td><span>{Special_Allowance}</span></td>
                 </tr>
                 <tr>
-                    <td>Gracie Pay</td>
-                    <td><span>&lt;grade_pay&gt;</span></td>
+                    <td>Other</td>
+                    <td><span>{other}</span></td>
                 </tr>
+            <tr><td style="color:white">hidden</td></tr>
+
         </table>
     </td><td>
         <table class="section right">
@@ -317,28 +270,44 @@
                 <td colspan="2">Deductions</td>
             </tr>
             <tr>
-                <td>Provident Fund</td>
-                <td><span>&lt;provident&gt;</span></td>
+                <td>Profession Tax</td>
+                <td><span>{profession}</span></td>
             </tr>
             <tr>
-                <td>Profession Tax</td>
-                <td><span>&lt;profession&gt;</span></td>
+                <td>PF</td>
+                <td><span>{PF}</span></td>
             </tr>
             <tr>
                 <td>TDS</td>
-                <td><span>&lt;TDS&gt;</span></td>
+                <td><span>{TDS}</span></td>
             </tr>
             <tr>
-                <td>Any Other Deduction 34</td>
-                <td><span>&lt;other_ded_34&gt;</span></td>
+                <td>LIC</td>
+                <td><span>{LIC}</span></td>
             </tr>
             <tr>
-                <td>L1C</td>
-                <td><span>&lt;LIC&gt;</span></td>
+                <td>Personal Loan</td>
+                <td><span>{personal_loan}</span></td>
+            </tr>
+            <tr>
+                <td>Diwali Advance / Other</td>
+                <td><span>{diwali}</span></td>
+            </tr>
+            <tr>
+                <td>STAFF LOAN / ADVANCE</td>
+                <td><span>{STAFF_LOAN}</span></td>
+            </tr>
+            <tr>
+                <td>ADVANCE / MEDICAL</td>
+                <td><span>{ADV_MED}</span></td>
             </tr>
             <tr>
                 <td>KJSOMAIYA CREDIT SOC1TY LTD</td>
-                <td><span>&lt;KJS_CREDIT&gt;</span></td>
+                <td><span>{KJS_CREDIT}</span></td>
+            </tr>
+            <tr>
+                <td>Any Other Deduction</td>
+                <td><span>{other_ded}</span></td>
             </tr>
             </table>
         
@@ -350,44 +319,22 @@
         <tr><td>
         <table class="section left">
             <tr>
-                <td>Total Earnings: <span>&lt;TOTAL_EARNINGS&gt;</span></td>
+                <td>Gross Salary: <span>{NET_PAY}</span></td>
             </tr>
             <tr>
-                <td>Net Pay: <span>&lt;NET_PAY&gt;</span></td>
-            </tr>
-            <tr>
-                <td>RUPEES: <span>&lt;NET_PAY_IN_WORDS&gt;</span></td>
+                <td>Total Earnings: <span>{TOTAL_EARNINGS}</span></td>
             </tr>
         </table>
         </td>
         <td>
             <table class="section right">
                 <tr>
-                    <td>Total Deductions: <span>&lt;TOTAL_DEDUCTIONS&gt;</span></td>
+                    <td>Total Deductions: <span>{TOTAL_DEDUCTIONS}</span></td>
                 </tr>
-                <tr>
-                    <td><p style='color:white'>hidden</p></td>
-                </tr>
+            <tr><td style="color:white">hidden</td></tr>
+                
             </table>
         </td>
-        </tr>
-    </table>
-
-    <div class="section-title">Payment Details</div>
-    <table class="payment-details">
-        <tr>
-            <td>Mode of Payment</td>
-            <td>Disbursement</td>
-            <td>Employee Bank Account No</td>
-            <td>Amount</td>
-            <td>Date</td>
-        </tr>
-        <tr>
-            <td><span>&lt;mode_of_payment&gt;</span></td>
-            <td><span>&lt;disbursement&gt;</span></td>
-            <td><span>&lt;employee_bank&gt;</span></td>
-            <td><span>&lt;account_no&gt;</span></td>
-            <td><span>&lt;AMOUNT&gt;</span></td>
         </tr>
     </table>
 
