@@ -155,16 +155,15 @@ def mapping(pd_columns:list[str],columns:str) -> dict[str,str]:
     to_check = [col for col in pd_columns if any(word in col.lower() for word in check_columns)]
 
     for col in to_check:
+        asq = 0
         for check in check_columns:
-            asq = 0
             
             if check in col.lower():
                 asq += 1
-
+                
         if memo[columns]['count']<asq:
             memo[columns]['col']=col
             memo[columns]['count']=asq
-
     return memo[columns]['col']
 
 # checks for word and returns the value of column (that matches word) if present, else None
