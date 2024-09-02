@@ -21,10 +21,10 @@ class Database():
     
     # create a table from month and year if it does not exist
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
-        cursor = self.db.cursor()
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
         try:
+            cursor = self.db.cursor()
             sql = f"CREATE TABLE {insti}_{type}_{month}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
@@ -38,7 +38,6 @@ class Database():
 
     # updates existing data or inserts new data
     def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
-        cursor = self.db.cursor()
         id = mapping(data.columns,'hr emp code')
 
         if sorted(self.getColumns(month,year,insti,type))!=sorted(list(data.columns)):
@@ -51,6 +50,8 @@ class Database():
             values = ','.join([ f"'{i}'" for i in new.values()])
 
             try:
+                cursor = self.db.cursor()
+
                 cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
 
             except mysql.connector.errors.IntegrityError as e:
@@ -64,9 +65,9 @@ class Database():
     
     # drops a table {insti}_{type}_{month}_{year}
     def dropTable(self,insti:str,type:str,month,year) -> int:
-        cursor = self.db.cursor()
 
         try:
+            cursor = self.db.cursor()
             cursor.execute(f'drop table {insti}_{type}_{month}_{year}')
             self.db.commit()
 
@@ -83,13 +84,14 @@ class Database():
             except ValueError:
                 return False
 
-        cursor = self.db.cursor()
-        memo = {}
+
         try:
+            cursor = self.db.cursor()
+            memo = {}
             cursor.execute('SHOW TABLES')
         except:
             print('MySQL Error Occured!')
-            return [None]
+            return {}
 
         temp = cursor.fetchall()
         year = [table[0].split('_') for table in temp]
@@ -116,8 +118,8 @@ class Database():
         try:
             cursor.execute(f'desc {insti}_{type}_{month}_{year}')
         except:
-            print('MySQL Error Occured!')
-            return None
+            print('MySQL Error Occured! (Tables does not exist)')
+            return [None]
         
         return [col_data[0] for col_data in cursor.fetchall()]
 
