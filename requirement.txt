@@ -3,7 +3,6 @@ pip install openpyxl==3.1.3
 pip install pdfkit==1.0.0
 pip install pandas==2.2.2
 pip install pyperclip==1.8.2
-pip install tkinter
 pip install customtkinter==5.2.2
 pip install xlrd==2.0.1
 
