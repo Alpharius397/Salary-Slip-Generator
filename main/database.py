@@ -89,7 +89,7 @@ class Database():
             cursor.execute('SHOW TABLES')
         except:
             print('MySQL Error Occured!')
-            return None
+            return [None]
 
         temp = cursor.fetchall()
         year = [table[0].split('_') for table in temp]
