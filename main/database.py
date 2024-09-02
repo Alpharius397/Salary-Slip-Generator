@@ -24,7 +24,9 @@ class Database():
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
-        if(not self.status): return -1
+        if(not self.status) or (not code_col): 
+            print(" HR EMP CODE not found or mysql connection failed ")
+            return -1
         
         cursor = self.db.cursor()
         
@@ -48,7 +50,9 @@ class Database():
         if sorted(self.getColumns(month,year,insti,type))!=sorted(list(data.columns)):
             return -1
         
-        if (not id) or (not self.status): return None
+        if (not id) or (not self.status): 
+            print(" HR EMP CODE not found or mysql connection failed ")
+            return None
         
         for i in data[id]:
             new = {col:data[data[id]==i][col].values[0] for col in data.columns}
@@ -155,7 +159,7 @@ class Database():
 
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
-    rename = lambda x: x.strip().replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
+    rename = lambda x: x.strip().replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
 
     data.rename(columns={col:rename(str(col)) for col in data.columns},inplace=True)
 
