@@ -16,6 +16,7 @@ class Database():
                 
                 self.status = True
             except:
+                self.status = False
                 print('No connection')
 
     
@@ -23,15 +24,19 @@ class Database():
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
+        if(not self.status): return -1
+        
+        cursor = self.db.cursor()
+        
         try:
-            cursor = self.db.cursor()
+            
             sql = f"CREATE TABLE {insti}_{type}_{month}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
             print('Table Created')
             self.db.commit()
-
             return 1
+        
         except:
             print('Table Exists')
             return 0
@@ -43,14 +48,16 @@ class Database():
         if sorted(self.getColumns(month,year,insti,type))!=sorted(list(data.columns)):
             return -1
         
+        if (not id) or (not self.status): return None
+        
         for i in data[id]:
             new = {col:data[data[id]==i][col].values[0] for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!=id])
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
 
+            cursor = self.db.cursor()
             try:
-                cursor = self.db.cursor()
 
                 cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
 
@@ -65,9 +72,11 @@ class Database():
     
     # drops a table {insti}_{type}_{month}_{year}
     def dropTable(self,insti:str,type:str,month,year) -> int:
+        
+        if(not self.status): return 0
 
+        cursor = self.db.cursor()
         try:
-            cursor = self.db.cursor()
             cursor.execute(f'drop table {insti}_{type}_{month}_{year}')
             self.db.commit()
 
@@ -77,21 +86,16 @@ class Database():
         
     # shows all tables
     def showTables(self) -> dict[str,dict[str,list[str]]]:
-        def contains(lst, char):
-            try:
-                temp = lst.index('_')
-                return True
-            except ValueError:
-                return False
 
-
+        memo = {}
+        if(not self.status): return memo
+        
+        cursor = self.db.cursor()
         try:
-            cursor = self.db.cursor()
-            memo = {}
             cursor.execute('SHOW TABLES')
         except:
             print('MySQL Error Occured!')
-            return {}
+            return memo
 
         temp = cursor.fetchall()
         year = [table[0].split('_') for table in temp]
@@ -113,19 +117,26 @@ class Database():
 
     # fetches all columns of a table
     def getColumns(self,month:str,year:int,insti:str,type:str) -> list[str]:
+        
+        if(not self.status): return []
+        
         cursor = self.db.cursor(buffered=True)
 
         try:
             cursor.execute(f'desc {insti}_{type}_{month}_{year}')
         except:
             print('MySQL Error Occured! (Tables does not exist)')
-            return [None]
+            return []
         
         return [col_data[0] for col_data in cursor.fetchall()]
 
 
     # fetches all data from table month_year  
     def fetchAll(self,month:str,year:int,insti:str,type:str) -> pd.DataFrame:
+        
+        if(not self.status): return pd.DataFrame({},columns=columns,dtype=str)
+        
+        cursor = self.db.cursor()
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -166,7 +177,8 @@ def mapping(pd_columns:list[str],columns:str) -> dict[str,str]:
         if memo[columns]['count']<asq:
             memo[columns]['col']=col
             memo[columns]['count']=asq
-    return memo[columns]['col']
+            
+    return memo[columns]['col'] 
 
 # checks for word and returns the value of column (that matches word) if present, else None
 def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
@@ -175,7 +187,7 @@ def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
     if pred_col is not None:
         return pd_Data[pred_col].values[0]
     else: 
-        return 'None'
+        return None
     
 """
 Optimized Gemini Code

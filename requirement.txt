@@ -1,0 +1,11 @@
+pip install mysql-connector-python
+pip install openpxyl
+pip install pdfkit
+pip install pandas
+pip install pyperclip
+pip install tkinter
+pip install customtkinter
+pip install xlrd
+
+add wthmltopdf to path:
+    add it to path environment variable
