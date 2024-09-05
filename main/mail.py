@@ -30,7 +30,7 @@ class Mailing():
         try:
             if self.status:
                 with open(file, "rb") as attachment:
-                    p = MIMEBase('application', 'octet-stream') 
+                    p = MIMEBase('application/pdf', 'octet-stream') 
                     p.set_payload((attachment).read()) 
                     encoders.encode_base64(p) 
                     p.add_header(f'Content-Disposition', f"attachment; filename={filename}") 

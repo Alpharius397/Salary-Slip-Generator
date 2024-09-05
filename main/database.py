@@ -1,6 +1,9 @@
+import datetime
 import mysql.connector
 import pandas as pd
 from collections import defaultdict
+import re
+import numpy as np
 
 class Database():
     def __init__(self,host:str,user:str,password:str,database:str) -> None:
@@ -55,7 +58,7 @@ class Database():
             return None
         
         for i in data[id]:
-            new = {col:data[data[id]==i][col].values[0] for col in data.columns}
+            new = {col:cleanData(data[data[id]==i][col].values) for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!=id])
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
@@ -63,12 +66,14 @@ class Database():
             cursor = self.db.cursor()
             try:
 
-                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values})")    
+                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values});")    
 
             except mysql.connector.errors.IntegrityError as e:
-                cursor.execute(f'UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE {id}={i}')
-
-            except mysql.connector.errors.ProgrammingError as f:
+                try:
+                    cursor.execute(f"UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE {id}={i};")
+                except:
+                    return 0
+            except:
                 return 0
 
             self.db.commit()
@@ -162,6 +167,20 @@ def dataRefine(data:pd.DataFrame) -> None:
     rename = lambda x: x.strip().replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
 
     data.rename(columns={col:rename(str(col)) for col in data.columns},inplace=True)
+
+def cleanData(val:str|int|float) -> None:
+    
+    if len(val)==0:
+        return ""
+    try:
+        val = int(val[0]) if (type(val[0])==np.int64 or type(val[0])==np.float64) else str(val[0])
+    except:
+        val = str(val[0])
+    if(type(val)==str):
+        txt = re.findall("(\d{4})[-,/](\d{2})[-,/](\d{2})",str(val))
+        val='-'.join(txt[0]) if txt else val
+
+    return str(val)
 
 # tries to find columns based on the frequency of word in column
 def mapping(pd_columns:list[str],columns:str) -> dict[str,str]:
