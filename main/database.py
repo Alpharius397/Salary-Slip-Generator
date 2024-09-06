@@ -35,7 +35,7 @@ class Database():
         
         try:
             
-            sql = f"CREATE TABLE {insti}_{type}_{month}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
+            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
             print('Table Created')
@@ -66,7 +66,7 @@ class Database():
             cursor = self.db.cursor()
             try:
 
-                cursor.execute(f"INSERT INTO {insti}_{type}_{month}_{year} ({keys}) VALUE ({values});")    
+                cursor.execute(f"INSERT INTO {insti.lower()}_{type.lower()}_{month.lower()}_{year} ({keys}) VALUE ({values});")    
 
             except mysql.connector.errors.IntegrityError as e:
                 try:
@@ -86,7 +86,7 @@ class Database():
 
         cursor = self.db.cursor()
         try:
-            cursor.execute(f'drop table {insti}_{type}_{month}_{year}')
+            cursor.execute(f'drop table {insti.lower()}_{type.lower()}_{month.lower()}_{year.lower()}')
             self.db.commit()
 
             return 1
@@ -132,7 +132,7 @@ class Database():
         cursor = self.db.cursor(buffered=True)
 
         try:
-            cursor.execute(f'desc {insti}_{type}_{month}_{year}')
+            cursor.execute(f'desc {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
         except:
             print('MySQL Error Occured! (Tables does not exist)')
             return []
@@ -149,7 +149,7 @@ class Database():
         cursor = self.db.cursor(buffered=True)
 
         try:
-            cursor.execute(f"SELECT * FROM {insti}_{type}_{month}_{year}")
+            cursor.execute(f"SELECT * FROM {insti.lower()}_{type.lower()}_{month.lower()}_{year}")
 
         except:
             print('Table does not exists')
@@ -160,8 +160,11 @@ class Database():
     
     # end database. RIP
     def endDatabase(self) -> None:
-        self.db.close()
-
+        try:
+            self.db.close()
+        except:
+            pass
+            
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
     rename = lambda x: x.strip().replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()

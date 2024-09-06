@@ -76,4 +76,9 @@ class Mailing():
         
     # quits current smtp
     def destroy(self):
-        self.smtp.quit() 
+        try:
+            self.smtp.quit() 
+        except:
+            self.status=False
+        
+        return self
