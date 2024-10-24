@@ -24,7 +24,7 @@ class Database():
 
     
     # create a table from month and year if it does not exist
-    def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
+    def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> bool:
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
         if(not self.status) or (not code_col): 
@@ -70,7 +70,7 @@ class Database():
 
             except mysql.connector.errors.IntegrityError as e:
                 try:
-                    cursor.execute(f"UPDATE {insti}_{type}_{month}_{year} SET {query} WHERE {id}={i};")
+                    cursor.execute(f"UPDATE {insti.lower()}_{type.lower()}_{month.lower()}_{year} SET {query} WHERE {id}={i};")
                 except:
                     return 0
             except:
@@ -80,13 +80,13 @@ class Database():
         return 1
     
     # drops a table {insti}_{type}_{month}_{year}
-    def dropTable(self,insti:str,type:str,month,year) -> int:
+    def dropTable(self,insti:str,type:str,month:str,year:int) -> int:
         
         if(not self.status): return 0
 
         cursor = self.db.cursor()
         try:
-            cursor.execute(f'drop table {insti.lower()}_{type.lower()}_{month.lower()}_{year.lower()}')
+            cursor.execute(f'drop table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
             self.db.commit()
 
             return 1
