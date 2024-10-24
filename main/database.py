@@ -24,7 +24,7 @@ class Database():
 
     
     # create a table from month and year if it does not exist
-    def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> bool:
+    def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
         if(not self.status) or (not code_col): 
@@ -54,10 +54,11 @@ class Database():
             return -1
         
         if (not id) or (not self.status): 
-            print(" HR EMP CODE not found or mysql connection failed ")
+            print(" HR EMP CODE not found or MySQL connection failed ")
             return None
         
         for i in data[id]:
+            
             new = {col:cleanData(data[data[id]==i][col].values) for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new if col!=id])
             keys = ','.join(new.keys())
@@ -239,7 +240,8 @@ def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFram
         return 'None'
         
 """
-"""# Must do these 3 steps
+"""
+# Must do these 3 steps
 pde = pd.read_excel("Excel-to-Pdf-Generator\sample_data\Sample sheet for salary calculation and salary slip (1).xlsx")
 dataRefine(pde)
 
@@ -248,7 +250,8 @@ b = Database(
         user="root",
         password="1234",
         database="somaiya_salary"
-    )"""
+    )
+"""
 
 
 
