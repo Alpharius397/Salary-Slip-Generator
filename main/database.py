@@ -132,8 +132,6 @@ class Database():
             print('MySQL Error Occured!')
             return memo
 
-        print(tables)
-
         for table in tables:
             is_table = re.findall(table_format,table)
             if is_table:
@@ -217,7 +215,7 @@ def cleanData(val:str|int|float) -> str:
     return str(val)
 
 # tries to find columns based on the frequency of word in column
-def mapping(pd_columns:list[str],columns:str) -> dict[str,str]:
+def mapping(pd_columns:list[str],columns:str) -> str | None:
 
     check_columns = columns.lower().split(' ')
 

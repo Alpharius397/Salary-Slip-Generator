@@ -62,6 +62,14 @@ HTML_CONTENT = """
             word-wrap: break-word;
             word-break: break-all ;
         }
+        
+        .table td{
+            width: 400px;
+        }
+        
+        .section tr{
+            height: 30px;
+        }
 
     </style>
 </head>
@@ -310,7 +318,7 @@ def DATA_CONTENT(month:str,year:str,emp_data:dict) -> str:
                 <td><span>{emp_data['med']}</span></td>
             </tr>
             <tr>
-                <td>KJSOMAIYA CREDIT SOC1TY LTD</td>
+                <td>KJ SOMAIYA CREDIT SOC1TY LTD</td>
                 <td><span>{emp_data['kjsieit']}</span></td>
             </tr>
             <tr>
