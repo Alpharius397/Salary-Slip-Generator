@@ -213,7 +213,7 @@ def DATA_CONTENT(month:str,year:str,emp_data:dict) -> str:
                 <td>Name: <span>{emp_data['name']}</span></td>
             </tr>
             <tr>
-                <td>Department: <span>{emp_data['dept']}</span></td>
+                <td>Aadhar Card No: <span>{emp_data['aadhar']}</span></td>
             </tr>
             <tr>
                 <td>PF No.: <span>{emp_data['pf']}</span></td>
@@ -221,7 +221,7 @@ def DATA_CONTENT(month:str,year:str,emp_data:dict) -> str:
             <tr>
                 <td>UAN No: <span>{emp_data['una']}</span></td>
             </tr>
-                        <tr>
+            <tr>
                 <td>Scale: <span>{emp_data['scale']}</span></td>
             </tr>
 
@@ -242,15 +242,15 @@ def DATA_CONTENT(month:str,year:str,emp_data:dict) -> str:
                     <td colspan="2">Earnings</td>
                 </tr>
                 <tr>
-                    <td>Basic Salary</td>
+                    <td>Basic Pay</td>
                     <td><span>{emp_data['org_basic']}</span></td>
                 </tr>
                 <tr>
-                    <td>Present Basic Salary</td>
+                    <td>Present Basic</td>
                     <td><span>{emp_data['basic_sal']}</span></td>
                 </tr>
                 <tr>
-                    <td>AGP / GP</td>
+                    <td>DP / GP</td>
                     <td><span>{emp_data['agp/gp']}</span></td>
                 </tr>
                 <tr>
