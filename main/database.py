@@ -297,18 +297,17 @@ class PandaGenerator:
     def __init__(self,data: pd.DataFrame,unique_column:str) -> None:
         self.data = data
         self.unique = unique_column
-        self.columns = self.data.columns
+        self.columns = {j:i for i,j in enumerate(self.data.columns)}
         self.memo = self._make_memo()
         self.keys = list(self.memo.keys())
         self.idx = -1
 
     def _make_memo(self):
         memo = {}
-        
-        row,col = self.data.shape
-        
-        for i in range(row):
-            idx = self.data.iloc[i,:][self.unique]
+                
+        for i in self.data.itertuples(index=False):
+            
+            idx = i[self.columns[self.unique]]
             memo[idx] = i
             
         return memo
@@ -318,12 +317,13 @@ class PandaGenerator:
         if(self.idx>len(self.keys)-2): raise StopIteration
     
         self.idx+=1
-        return pd.DataFrame([self.data.iloc[self.memo[self.keys[self.idx]]]],columns=self.columns)
+        return pd.DataFrame([self.memo[self.keys[self.idx]]],columns=list(self.columns.keys()))
     
     def __getitem__(self,index):
         if(index not in self.memo):
             raise KeyError(f"Key: {index} not found")
-        return pd.DataFrame([self.data.iloc[self.memo[index]]],columns=self.columns)
+        return pd.DataFrame([self.memo[index]],columns=list(self.columns.keys()))
+
     
 # Optimized Gemini Code
 # import pandas as pd
