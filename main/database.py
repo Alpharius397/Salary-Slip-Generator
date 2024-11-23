@@ -2,13 +2,15 @@ import mysql.connector as mysql
 import pandas as pd
 from collections import defaultdict
 import re
-from datetime import date,datetime
 import numpy as np
+from logger import Logger
+import os
 
 class Database():
-    def __init__(self) -> None:
+    def __init__(self,error_logger:Logger) -> None:
         self.status = False
         self.db = None
+        self.logger = error_logger
         
     def connectDatabase(self,host:str,user:str,password:str,database:str):
         if host and user and password and database:
@@ -21,7 +23,9 @@ class Database():
                         )
                 
                 self.status = True
-            except:
+                self.add_mysql_info(f'Connected to Database {database}')
+            except Exception as e:
+                self.add_mysql_error(self.logger.get_error_info(e))
                 print('No connection')
         else:
             print("Invalid Creds")
@@ -50,13 +54,18 @@ class Database():
             self.db.commit()
             return 1
 
-        except mysql.errors.ProgrammingError:
+        except mysql.errors.ProgrammingError as e:
+            self.add_mysql_error(self.logger.get_error_info(e))
             print('Table Exists')
             return 2
         
-        except Exception as f:
-            print(f)
+        except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))
+            print(e)
             return 3
+        
+        finally:
+            cursor.close()
         
 
     # updates existing data or inserts new data
@@ -84,15 +93,23 @@ class Database():
                 cursor.execute(f"INSERT INTO {insti.lower()}_{type.lower()}_{month.lower()}_{year} ({keys}) VALUE ({values});")    
 
             except mysql.errors.IntegrityError as e:
+                self.add_mysql_error(self.logger.get_error_info(e))
+                
                 try:
                     cursor.execute(f"UPDATE {insti.lower()}_{type.lower()}_{month.lower()}_{year} SET {query} WHERE {id}={new[id]};")
-                except Exception as e:
-                    print(e,f"UPDATE {insti.lower()}_{type.lower()}_{month.lower()}_{year} SET {query} WHERE {id}={new[id]};")
+                    
+                except Exception as f:
+                    self.add_mysql_error(self.logger.get_error_info(f))
                     return 0
-            except Exception as e:
-                print(e)
+                
+            except Exception as g:
+                self.add_mysql_error(self.logger.get_error_info(g))
+                print(g)
                 return 0
-
+                
+            finally:
+                cursor.close()
+        
             self.db.commit()
         return 1
     
@@ -108,10 +125,12 @@ class Database():
 
             return True
         except mysql.ProgrammingError as f:
+            self.add_mysql_error(self.logger.get_error_info(f))
             print("Table doesn't exists")
             return False
         
         except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))
             return None
         
     # shows all tables
@@ -121,14 +140,15 @@ class Database():
         {'Somaiya':['Teaching','NonTeaching','Temporary'],'SVV':['svv']}
         {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sept":9, "oct":10, "nov":11, "dec":12}
         table_format = r'^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})$' # insti_type_month_year
-        
+        print(self.status)
         if(not self.status): return memo
         
         cursor = self.db.cursor()
         try:
             cursor.execute('SHOW TABLES')
             tables = [i[0] for i in cursor.fetchall()]
-        except:
+        except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))    
             print('MySQL Error Occured!')
             return memo
 
@@ -147,7 +167,9 @@ class Database():
                 memo[_insti][_type][_year].add(_month)
 
             else:
-                print(f"Unexpected table name format: {table}")
+                expected_format = "Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})$"
+                self.add_mysql_error(f"Unexpected table name format: {table}. {expected_format}")
+                print(f"Unexpected table name format: {table}. {expected_format}")
 
         return memo
 
@@ -160,7 +182,8 @@ class Database():
 
         try:
             cursor.execute(f'desc {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
-        except:
+        except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))    
             print('MySQL Error Occured! (Tables does not exist)')
             return []
         
@@ -178,7 +201,8 @@ class Database():
         try:
             cursor.execute(f"SELECT * FROM {insti.lower()}_{type.lower()}_{month.lower()}_{year}")
             result = cursor.fetchall()
-        except:
+        except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))    
             print('Table does not exists')
             return None
         
@@ -189,10 +213,17 @@ class Database():
     def endDatabase(self):
         try:
             if self.db: self.db.close()
-        except:
-            pass
-        return self
+        except Exception as e:
+            self.add_mysql_error(self.logger.get_error_info(e))    
             
+        return self
+    
+    def add_mysql_error(self, msg:str):
+        self.logger.write_error(msg,'MySQL')
+            
+    def add_mysql_info(self, msg:str):
+        self.logger.write_info(msg,'MySQL')        
+    
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
     rename = lambda x: x.strip().replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
@@ -305,10 +336,9 @@ class PandaGenerator:
     def _make_memo(self):
         memo = {}
                 
-        for i in self.data.itertuples(index=False):
-            
-            idx = i[self.columns[self.unique]]
-            memo[idx] = i
+        for i in self.data.iterrows():
+            idx = i[1].values[self.columns[self.unique]]
+            memo[idx] = i[1]
             
         return memo
     def __iter__(self): return self
@@ -319,10 +349,13 @@ class PandaGenerator:
         self.idx+=1
         return pd.DataFrame([self.memo[self.keys[self.idx]]],columns=list(self.columns.keys()))
     
-    def __getitem__(self,index):
+    def __getitem__(self,index) -> pd.DataFrame:
         if(index not in self.memo):
             raise KeyError(f"Key: {index} not found")
         return pd.DataFrame([self.memo[index]],columns=list(self.columns.keys()))
+    
+    def dict_iter(self):
+        return self.memo
 
     
 # Optimized Gemini Code
@@ -337,15 +370,12 @@ class PandaGenerator:
 #         return pd_data[best_match].values[0]
 #     else:
 #         return 'None'
-        
 
-# # Must do these 3 steps
-# # pde = pd.read_excel("Excel-to-Pdf-Generator\sample_data\Sample sheet for salary calculation and salary slip (1).xlsx")
-# # dataRefine(pde)
-
-# b = Database().connectDatabase(
-#         host="localhost",
-#         user="root",
-#         password="1234",
-#         database="somaiya_salary"
-# )
+# asd = Database(er).connectDatabase('localhost','root','1234','somaiya_salary')
+# print(asd.showTables())
+# data = asd.fetchAll('jan','2024','somaiya','teaching')
+# print(data.columns)
+# pan = PandaGenerator(data,'hr_emp_code')
+# print(pan['220017'])
+# print(pan.dict_iter())
+# print(pan.data[data.columns[0]])

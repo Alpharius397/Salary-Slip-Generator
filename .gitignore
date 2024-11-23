@@ -8,3 +8,7 @@ SALARY SLIP.xlsx
 main/pdfs
 05 SALARY SLIP AUG 2024.xlsx
 build_exe.txt
+tester
+tempCodeRunnerFile.py
+*.log
+main/__pycache__
