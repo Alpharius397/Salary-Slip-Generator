@@ -38,18 +38,20 @@ ctk.set_appearance_mode("light")
 class BaseTemplate():
     """ Base Template for all tkinter frames """
     
-    frame:ctk.CTkScrollableFrame = None
-    process:Process = None
-    """ Each frame will have 1 process to run big task """
-    thread:Thread = None
-    """ Each frame gets 1 thread to process gui changes """
-    QUEUE = Queue()
-    """ A queue for communication between thread and process """
-    stop_flag:bool = False
-    """ A stop flag for thread to stop """
-    visible:bool = False
-    
-    to_disable:list[ctk.CTkButton|ctk.CTkOptionMenu|ctk.CTkEntry] = []
+    def __init__(self) -> None:
+        self.frame:ctk.CTkScrollableFrame = None
+        self.process:Process = None
+        """ Each frame will have 1 process to run big task """
+        self.thread:Thread = None
+        """ Each frame gets 1 thread to process gui changes """
+        self.QUEUE = Queue()
+        """ A queue for communication between thread and process """
+        self.stop_flag:bool = False
+        """ A stop flag for thread to stop """
+        self.visible:bool = False
+        
+        self.to_disable:list[ctk.CTkButton|ctk.CTkOptionMenu|ctk.CTkEntry] = []
+        
     
     def appear(self) -> None:
         """ Add frame to the tkinter app """
@@ -88,7 +90,7 @@ class BaseTemplate():
         for i in range(len(all_attribute)):
             
             object = self.__getattribute__(all_attribute[i])
-            if((all_attribute[i]!="quit") and (isinstance(object,ctk.CTkButton) or isinstance(object,ctk.CTkOptionMenu) or isinstance(object,ctk.CTkEntry))):
+            if((all_attribute[i]!="quit" or all_attribute[i]!="back") and (isinstance(object,ctk.CTkButton) or isinstance(object,ctk.CTkOptionMenu) or isinstance(object,ctk.CTkEntry))):
                 to_disable.append(object)
                 
         return to_disable
@@ -152,7 +154,6 @@ class PDFGenerator:
                 
         except Exception as e:
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
-            tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
             
         return (False,f"An error occurred while generating the PDF: {str(e)}")
             
@@ -487,6 +488,7 @@ class MailCover(BaseTemplate):
     """ Mailing Cover to choose either single-mailing / bulk-mailing """
     
     def __init__(self,outer:App):
+        super().__init__()
         self.outer = outer    
         master = self.outer.APP
         self.frame = ctk.CTkScrollableFrame(master=master,fg_color=custom_color_scheme["fg_color"])
@@ -518,6 +520,7 @@ class SendMail(BaseTemplate):
     chosen_month = ctk.StringVar(value='Jan')   
     
     def __init__(self,outer:App):
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         self.frame = ctk.CTkScrollableFrame(master=master,fg_color=custom_color_scheme["fg_color"])
@@ -660,6 +663,7 @@ class SendBulkMail(BaseTemplate):
     count, total = 0, 0
     
     def __init__(self,outer:App):
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -826,6 +830,7 @@ class Login(BaseTemplate):
     """ Login Page """
     
     def __init__(self,outer:App) -> None:
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -876,6 +881,7 @@ class Login(BaseTemplate):
 
 class MySQLLogin(BaseTemplate):
     def __init__(self,outer:App) -> None:
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -939,6 +945,7 @@ class MySQLLogin(BaseTemplate):
 
 class Interface(BaseTemplate):
     def __init__(self,outer:App) -> None:
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -1024,6 +1031,7 @@ class DataPreview(BaseTemplate):
     tables:dict[str,dict[str,dict[str,set[str]]]] = {}
     
     def __init__(self,outer:App) -> None:
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
@@ -1068,7 +1076,8 @@ class DataPreview(BaseTemplate):
         self.outer.CHILD[Interface.__name__].appear()
             
     def changeData(self):
-        """ Initialization of the optionmenus """        
+        """ Initialization of the optionmenus """     
+        print(self.tables)
         curr_institute = list(self.tables.keys())
         curr_type = list(self.tables[curr_institute[0]].keys())
         curr_year = list(self.tables[curr_institute[0]][curr_type[0]].keys())
@@ -1184,6 +1193,7 @@ class DataView(BaseTemplate):
     
     def __init__(self,outer:App):
 
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -1207,7 +1217,7 @@ class DataView(BaseTemplate):
         self.bulk_print = ctk.CTkButton(master=self.frame , text="Bulk Print PDFs", command=self.bulk_print_pdfs_cover, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.bulk_print.pack(pady=10)
         
-        ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_preview, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         ctk.CTkLabel(master=self.frame , text="Text Size of Sheet:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
@@ -1236,9 +1246,9 @@ class DataView(BaseTemplate):
     def changeHeading(self):
         GUI_Handler().changeText(self.label_date,f"Data View for {self.chosen_institute.capitalize()} {self.chosen_type.capitalize()} {self.chosen_month.capitalize()}/{self.chosen_year}")
     
-    def back_to_interface(self) -> None:
+    def back_to_preview(self) -> None:
         self.hide()
-        self.outer.CHILD[Interface.__name__].appear()
+        self.outer.CHILD[DataPreview.__name__].appear()
         
     def decrease_size(self):
         self.row.configure(text=max(1,self.size-1))
@@ -1412,6 +1422,7 @@ class FileInput(BaseTemplate):
     current_data:pd.DataFrame = None
     
     def __init__(self, outer:App):
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -1799,6 +1810,7 @@ class UploadData(BaseTemplate):
     chosen_month = ctk.StringVar(value='Jan')   
 
     def __init__(self, outer:App):
+        super().__init__()
         self.outer = outer
         master = self.outer.APP
         
@@ -2041,5 +2053,5 @@ class UploadData(BaseTemplate):
 if __name__ == "__main__":
     # initialize main app
     app = App(500,500,'Machine Spirit')
-    print(app.CHILD[FileInput.__name__].get_widgets_to_disable())
-    # app.start_app()
+    # print(app.CHILD[FileInput.__name__].get_widgets_to_disable())
+    app.start_app()
