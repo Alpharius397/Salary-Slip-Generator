@@ -49,6 +49,8 @@ class BaseTemplate():
     """ A stop flag for thread to stop """
     visible:bool = False
     
+    to_disable:list[ctk.CTkButton|ctk.CTkOptionMenu|ctk.CTkEntry] = []
+    
     def appear(self) -> None:
         """ Add frame to the tkinter app """
         if(not self.visible):
@@ -78,6 +80,18 @@ class BaseTemplate():
         can_we_start = ((self.process is None) or (self.process and (not self.process.is_alive())) and ((self.thread is None) or (self.thread and (not self.thread.is_alive()))))
         if(can_we_start): self.stop_flag = False
         return can_we_start
+    
+    def get_widgets_to_disable(self):
+        all_attribute = dir(self)
+        
+        to_disable = []        
+        for i in range(len(all_attribute)):
+            
+            object = self.__getattribute__(all_attribute[i])
+            if((all_attribute[i]!="quit") and (isinstance(object,ctk.CTkButton) or isinstance(object,ctk.CTkOptionMenu) or isinstance(object,ctk.CTkEntry))):
+                to_disable.append(object)
+                
+        return to_disable
 
 class App:
     """ Main class representing the application """
@@ -560,7 +574,7 @@ class SendMail(BaseTemplate):
         
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         
-        self.to_disable:list[ctk.CTkButton] = [send_button, self.browse_button]
+        self.to_disable = self.get_widgets_to_disable()
         
     def cancel_thread_wrapper(self) -> None:
         self.cancel_thread()
@@ -692,8 +706,8 @@ class SendBulkMail(BaseTemplate):
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         
         ctk.CTkButton(master=self.frame , text='Back', command=self.button_mailing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        self.to_disable = self.get_widgets_to_disable()
         
-        self.to_disable:list[ctk.CTkButton] = [self.folder, mail_button, self.browse_button,]
         
     def changeType(self, event:tk.Event = None):
         institute = self.chosen_institute.get()
@@ -833,6 +847,8 @@ class Login(BaseTemplate):
 
         ctk.CTkButton(master=self.frame, text='Login', command=self.login, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         ctk.CTkButton(master=self.frame, text='Exit', command=self.quit, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        
+        self.to_disable = self.get_widgets_to_disable()
 
     def login(self) -> None:
         """ Check username and password """
@@ -894,8 +910,8 @@ class MySQLLogin(BaseTemplate):
         frame.pack()
         
         ctk.CTkButton(master=self.frame, text='Continue', command=self.next, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-        
         ctk.CTkButton(master=self.frame, text='Back', command=self.back, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        self.to_disable = self.get_widgets_to_disable()
 
     # back to login page
     def back(self):
@@ -942,8 +958,8 @@ class Interface(BaseTemplate):
         self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_mysql, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.back.pack(pady=10, padx=10)
         
-        self.to_disable:list[ctk.CTkOptionMenu] = [self.preview_db,upload,mail,self.back]
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.to_disable = self.get_widgets_to_disable()
         
     # back to mysql setup page
     def back_to_mysql(self) -> None:
@@ -1042,9 +1058,8 @@ class DataPreview(BaseTemplate):
         self.fetch_data.pack(pady=10, padx=10)
         
         ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-
-        self.to_disable:list[ctk.CTkOptionMenu] = [self.fetch_data,self.entry_instituteList,self.entry_monthList,self.entry_typeList,self.entry_yearList]
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.to_disable = self.get_widgets_to_disable()
         
         
     def back_to_interface(self) -> None:
@@ -1214,9 +1229,8 @@ class DataView(BaseTemplate):
         x_scrollbar.pack(side='bottom', fill='x')
 
         self.text_excel.configure(xscrollcommand=x_scrollbar.set)
-        
-        self.to_disable:list[ctk.CTkButton] = [self.entry_id,self.single_print,self.clipboard,self.minus,self.plus,self.bulk_print]
         self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.to_disable = self.get_widgets_to_disable()
 
     # back to interface
     def changeHeading(self):
@@ -1472,9 +1486,8 @@ class FileInput(BaseTemplate):
         self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
         
         
-        self.to_disable:list[ctk.CTkButton] = [self.upload_button,self.file,self.browse_button,self.password_box,self.row,self.row_minus,self.row_plus,self.sheetList,self.font_size,self.size_minus,self.size_plus,self.back]
         self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread_wrapper, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-
+        self.to_disable = self.get_widgets_to_disable()
         
     def back_to_interface(self):
         self.hide()
@@ -1852,9 +1865,8 @@ class UploadData(BaseTemplate):
         self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_input, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.back.pack(pady=10, padx=10)
         
-        self.to_disable:list[ctk.CTkButton] = [self.create_button,self.update_button,self.delete_button,self.size_minus,self.size_plus,self.back,self.entry_institute,self.entry_month,self.entry_year]
         self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread_wrapper, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-
+        self.to_disable = self.get_widgets_to_disable()
 
     def back_to_input(self):
         self.hide()
@@ -2029,4 +2041,5 @@ class UploadData(BaseTemplate):
 if __name__ == "__main__":
     # initialize main app
     app = App(500,500,'Machine Spirit')
-    app.start_app()
+    print(app.CHILD[FileInput.__name__].get_widgets_to_disable())
+    # app.start_app()
