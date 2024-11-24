@@ -34,12 +34,15 @@ class Database():
 
     # create a table from month and year if it does not exist
     def createData(self,month:str,year:int,columns:list[str],insti:str,type:str) -> int:
+        columns = sorted(columns)
+        
         code_col = mapping(columns='hr emp code',pd_columns=columns)
 
         if(not self.status) or (not code_col): 
             print(" HR EMP CODE not found or mysql connection failed ")
             return 0
         
+        # Shouldn't happen
         if(len(set(columns))<len(columns)):
             return -1
         
@@ -47,7 +50,7 @@ class Database():
         
         try:
             
-            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ col + ' VARCHAR(225) PRIMARY KEY' if col==code_col else col + ' VARCHAR(225)' for col in columns])})"
+            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ f"{col}" + ' VARCHAR(225) PRIMARY KEY' if col==code_col else f"{col}" + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
             print('Table Created')
@@ -57,7 +60,10 @@ class Database():
         except mysql.errors.ProgrammingError as e:
             self.add_mysql_error(self.logger.get_error_info(e))
             print('Table Exists')
-            return 2
+            if(sorted(self.getColumns(month,year,insti,type))!=sorted(columns)):
+                return -2
+            else:
+                return 2
         
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))
@@ -105,7 +111,7 @@ class Database():
             except Exception as g:
                 self.add_mysql_error(self.logger.get_error_info(g))
                 print(g)
-                return 0
+                return 
                 
             finally:
                 cursor.close()
@@ -226,7 +232,7 @@ class Database():
     
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
-    rename = lambda x: x.strip().replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
+    rename = lambda x: x.strip().replace(':',"_").replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
 
     data.rename(columns={col:rename(str(col)) for col in data.columns},inplace=True)
 

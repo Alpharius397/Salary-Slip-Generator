@@ -91,7 +91,7 @@ class App:
     def __init__(self, width:int, height:int, title:str) -> None:
         self.APP.geometry(f"{width}x{height}")
         self.APP.title(title)
-        self.CHILD:dict[str,MySQLLogin|SendMail|SendBulkMail|Login|Interface|DataPreview|DataView] = {DataView.__name__:DataView(self),MySQLLogin.__name__:MySQLLogin(self),SendMail.__name__:SendMail(self),SendBulkMail.__name__:SendBulkMail(self),Login.__name__:Login(self),Interface.__name__:Interface(self),MailCover.__name__:MailCover(self),DataPreview.__name__:DataPreview(self)}
+        self.CHILD:dict[str,MySQLLogin|SendMail|SendBulkMail|Login|Interface|DataPreview|DataView|FileInput|UploadData] = {UploadData.__name__:UploadData(self),FileInput.__name__:FileInput(self),DataView.__name__:DataView(self),MySQLLogin.__name__:MySQLLogin(self),SendMail.__name__:SendMail(self),SendBulkMail.__name__:SendBulkMail(self),Login.__name__:Login(self),Interface.__name__:Interface(self),MailCover.__name__:MailCover(self),DataPreview.__name__:DataPreview(self)}
     
     """ To start application run this """
     def start_app(self):
@@ -162,7 +162,7 @@ class PDFGenerator:
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
             tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
             
-        return (False,f"An error occurred while generating the PDF: {str(e)}")
+            return (False,f"An error occurred while generating the PDF: {str(e)}")
 
 class GUI_Handler:
     """ Handles GUI """
@@ -171,7 +171,7 @@ class GUI_Handler:
         """ Changes the text on the text excel thing  """
         def replace_new(x:str): return x.replace('\n',"")
         
-        text = [[i for i in data.columns]]
+        text = [[str(i) for i in data.columns]]
         col_widths = {i:len(str(j)) for i,j in enumerate(data.columns)}
         
         for row in data.itertuples(index=False):
@@ -230,24 +230,29 @@ class GUI_Handler:
         OptionList.configure(values=options)
         
     def changeCommand(self, widgets:ctk.CTkBaseClass, new_command:types.FunctionType) -> None:
+        """ Changes command of a widget """
         widgets.configure(command=new_command)
         
     def changeText(self, widgets:ctk.CTkLabel, text:str) -> None:
+        """ Changes text of widgets """
         widgets.configure(text=text)
+
+    def place(self, widget:ctk.CTkBaseClass,padx:int = 10, pady:int = 10) -> None:
+        """ Places widget after the last widget present on frame """
+        widget.pack(padx=padx,pady=pady)
 
 class Decryption:
     """ Handles file decryption  """
-    
-    prev_password = 'check'
-    
+        
     def is_encrypted(self, file:io.BufferedReader) -> bool:
         """ Checks if file is encrypted """
         return msoffcrypto.OfficeFile(file).is_encrypted()
     
 
-    def decrypting_wrapper(self, file_path:str, decrypted:io.BytesIO, password:str) -> tuple[bool,io.BytesIO]:
+    def decrypting_file(self, file_path:str, decrypted:io.BytesIO, password:str) -> tuple[bool,io.BytesIO]:
         """ Decrypts the file and extracts content into BytesIO """
         success = False
+        
         with open(file_path, "rb") as f:
 
             file = msoffcrypto.OfficeFile(f)
@@ -261,10 +266,60 @@ class Decryption:
             except msoffcrypto.exceptions.InvalidKeyError as e:
                 ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
     
-            except msoffcrypto.exceptions.InvalidKeyError as e:
+            except msoffcrypto.exceptions.DecryptionError as e:
                 ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
             
         return (success,decrypted)
+    
+    def is_encrypted_wrapper(self, queue: Queue,file_path:str) -> None:
+        def process_work():
+            if(os.path.isfile(file_path)):
+                
+                try:
+                    with open(file_path,'rb') as f:
+                        return self.is_encrypted(f)
+                except Exception as e:
+                    ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
+            return None
+            
+        queue.put(process_work())
+                
+    def fetch_decrypted_file(self, queue: Queue, file_path:str, skip:int = 0) -> None:
+        data = pd.read_excel(io=file_path,sheet_name=None,skiprows=skip)
+        result = [None,None]
+        
+        
+        if(data):
+            sheets = list(data.keys())
+            
+            for i in sheets:
+                dataRefine(data[i])
+            
+            result[0] = sheets
+            result[1] = data
+            
+        queue.put((result[0],result[1]))
+        
+    def fetch_encrypted_file(self, queue: Queue, file_path:str, password:str, skip:int = 0) -> None:
+        
+        result = [None,None]
+        with io.BytesIO() as decrypted:
+            success, file = self.decrypting_file(file_path,decrypted,password)
+        
+            if(success):
+                
+                data = pd.read_excel(io=file,sheet_name=None,skiprows=skip)
+                
+                if(data):
+                    sheets = list(data.keys())
+                    
+                    for i in sheets:
+                        dataRefine(data[i])
+                    
+                    result[0] = sheets
+                    result[1] = data
+            
+        queue.put((result[0],result[1]))    
 
 class MailingWrapper:
     """ Wrapper for Mailing class """
@@ -342,12 +397,32 @@ class DatabaseWrapper:
     
     def check_table(self, queue:Queue) -> None:
         queue.put(self.connectToDatabase().showTables())
-        self.DATABASE.endDatabase()
+        self.endThis()
     
     def get_data(self, queue: Queue,institute:str, type:str, year:int, month:str) -> None:
         queue.put(self.connectToDatabase().fetchAll(month,year,institute,type))
-        self.DATABASE.endDatabase()
+        self.endThis()
         
+    def create_table(self, queue: Queue,institute:str, type:str, year:int, month:str, data_columns: list[str]) -> None:
+        # create attempt
+        create_result = self.connectToDatabase().createData(month,year,data_columns,institute,type)
+        queue.put(create_result)
+        self.endThis()
+        
+    def fill_table(self, queue: Queue,institute:str, type:str, year:int, month:str, data: pd.DataFrame):
+        """ Attempts to insert data or update data in db (Doesn't ask for updation)"""
+        upsert_result = self.connectToDatabase().updateData(data,month,year,institute,type)
+        queue.put(upsert_result)
+        self.endThis()
+        
+    def delete_table(self, queue: Queue,institute:str, type:str, year:int, month:str):
+        """ Delete Table """
+        delete_result = self.connectToDatabase().dropTable(institute,type,month,year)
+        queue.put(delete_result)
+        self.endThis()
+        
+    def endThis(self):
+        self.DATABASE.endDatabase()
         
 class PandaGeneratorWrapper:
     """ PandasGenerator wrapper for process (aka Warhammer Class) """
@@ -403,9 +478,9 @@ class MailCover(BaseTemplate):
         self.frame = ctk.CTkScrollableFrame(master=master,fg_color=custom_color_scheme["fg_color"])
         
         ctk.CTkLabel(master=self.frame , text="Select mailing option", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10)
-        ctk.CTkButton(master=self.frame, text='Single Mail', command=self.single, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
-        ctk.CTkButton(master=self.frame, text='Bulk Mail', command=self.many, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
-        ctk.CTkButton(master=self.frame, text='Back', command=self.back_to_landing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
+        ctk.CTkButton(master=self.frame, text='Single Mail', command=self.single, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        ctk.CTkButton(master=self.frame, text='Bulk Mail', command=self.many, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        ctk.CTkButton(master=self.frame, text='Back', command=self.back_to_landing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
 
     def single(self) -> None:
         """ Redirect to Single Mailing """
@@ -444,30 +519,39 @@ class SendMail(BaseTemplate):
         self.browse_button = ctk.CTkButton(master=self.frame , text="Browse", command=self.browse_file, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.browse_button.pack(pady=10)
         
-        ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Institute:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        ctk.CTkOptionMenu(master=frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        frame.pack()
         
-        self.toggle_type = ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_type,values=self.outer.TOGGLE[list(self.outer.TOGGLE.keys())[0]][0],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Type:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.toggle_type = ctk.CTkOptionMenu(master=frame,variable=self.chosen_type,values=self.outer.TOGGLE[list(self.outer.TOGGLE.keys())[0]][0],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.toggle_type.pack(pady=10, padx=10)
+        frame.pack()
         
-        ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Month:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        ctk.CTkOptionMenu(master=frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame , text="Enter Year:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(side='left',pady=10, padx=10)
         self.year = ctk.CTkEntry(master=frame ,placeholder_text="Eg. 2024", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
         self.year.pack(side='left',pady=10, padx=10)
-        frame.pack(pady=10, padx=10)
+        frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame , text="Enter Employee ID:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(side='left',pady=10, padx=10)
         self.emp_id = ctk.CTkEntry(master=frame ,placeholder_text="Eg. 2200317", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=150)
         self.emp_id.pack(side='left',pady=10, padx=10)
-        frame.pack(pady=10, padx=10)
+        frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame , text="Enter Employee Email:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(side='left',pady=10, padx=10)
         self.email = ctk.CTkEntry(master=frame ,placeholder_text="Eg. asd@somaiya.edu", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.email.pack(side='left',pady=10, padx=10)
-        frame.pack(pady=10, padx=10)
+        frame.pack()
         
         send_button = ctk.CTkButton(master=self.frame , text='Send Mail', command=self.send_mail, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         send_button.pack(pady=10,padx=10)
@@ -578,27 +662,38 @@ class SendBulkMail(BaseTemplate):
         self.browse_button = ctk.CTkButton(master=self.frame , text='Browse', command=self.folder_browse, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.browse_button.pack(pady=10)
         
-        ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Institute:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.entry_institute =ctk.CTkOptionMenu(master=frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.entry_institute.pack(pady=10, padx=10,side='left')
+        frame.pack()
         
-        self.toggle_type = ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_type,values=self.outer.TOGGLE[list(self.outer.TOGGLE.keys())[0]][0],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-        self.toggle_type.pack(pady=10, padx=10)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Type:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.toggle_type = ctk.CTkOptionMenu(master=frame,variable=self.chosen_type,values=self.outer.TOGGLE[list(self.outer.TOGGLE.keys())[0]][0],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.toggle_type.pack(pady=10, padx=10,side='left')
+        frame.pack()
         
-        ctk.CTkOptionMenu(master=self.frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Month:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.entry_month = ctk.CTkOptionMenu(master=frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.entry_month.pack(pady=10, padx=10,side='left')
+        frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame , text="Enter Year:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(side='left',pady=10, padx=10)
-        self.year = ctk.CTkEntry(master=frame ,placeholder_text="Eg. 2024", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
-        self.year.pack(side='left',pady=10, padx=10)
-        frame.pack(pady=10, padx=10)
+        self.entry_year = ctk.CTkEntry(master=frame ,placeholder_text="Eg. 2024", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
+        self.entry_year.pack(side='left',pady=10, padx=10)
+        frame.pack()
         
         mail_button = ctk.CTkButton(master=self.frame , text='Send Emails', command=self.sendEvery, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         mail_button.pack(pady=10, padx=10)
         
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         
-        ctk.CTkButton(master=self.frame , text='Back', command=self.button_mailing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
+        ctk.CTkButton(master=self.frame , text='Back', command=self.button_mailing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         
-        self.to_disable:list[ctk.CTkButton] = [self.folder, mail_button]
+        self.to_disable:list[ctk.CTkButton] = [self.folder, mail_button, self.browse_button,]
         
     def changeType(self, event:tk.Event = None):
         institute = self.chosen_institute.get()
@@ -737,7 +832,7 @@ class Login(BaseTemplate):
         frame.pack()
 
         ctk.CTkButton(master=self.frame, text='Login', command=self.login, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-        ctk.CTkButton(master=self.frame, text='Exit', command=self.quit, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=12, padx=10)
+        ctk.CTkButton(master=self.frame, text='Exit', command=self.quit, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
 
     def login(self) -> None:
         """ Check username and password """
@@ -858,7 +953,7 @@ class Interface(BaseTemplate):
     # proceeds to upload page
     def upload(self) -> None:
         self.hide()
-        # self.outer.CHILD[FileInput.__name__].appear()
+        self.outer.CHILD[FileInput.__name__].appear()
 
     def mail(self) -> None:
         self.hide()
@@ -1017,11 +1112,17 @@ class DataPreview(BaseTemplate):
             
         if(table is not None):
             self.data = table
-            self.hide()
             GUI_Handler().view_excel(table,self.outer.CHILD[DataView.__name__].text_excel)
-            self.outer.CHILD[DataView.__name__].data = PandaGenerator(table,mapping(table.columns,"hr emp code"))
-            self.outer.CHILD[DataView.__name__].appear()
-            tkmb.showinfo('Fetch Status','Data Fetched Successfully')
+            unique_col = mapping(table.columns,"hr emp code")
+            
+            if(unique_col is not None):
+                self.outer.CHILD[DataView.__name__].data = PandaGenerator(table,unique_col)
+                self.hide()
+                self.outer.CHILD[DataView.__name__].appear()
+                tkmb.showinfo('Fetch Status','Data Fetched Successfully')
+            else:
+                tkmb.showinfo('Fetch Status','Data does not have HR EMP Code Column in table')
+                
         else:
             tkmb.showinfo('Fetch Status','Data Fetching Stopped')
             
@@ -1092,7 +1193,7 @@ class DataView(BaseTemplate):
         self.bulk_print.pack(pady=10)
         
         ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-        ctk.CTkLabel(master=self.frame , text="Text Size of Sheet", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
+        ctk.CTkLabel(master=self.frame , text="Text Size of Sheet:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         
@@ -1164,8 +1265,6 @@ class DataView(BaseTemplate):
         else:
             tkmb.showerror("Empty Data","Empty Search String Detected")
 
-        
-        
     def single_pdf_thread(self):
         
         GUI_Handler().lock_gui_button(self.to_disable)
@@ -1188,7 +1287,6 @@ class DataView(BaseTemplate):
             
         GUI_Handler().unlock_gui_button(self.to_disable)
         GUI_Handler().remove_widget(self.quit)
-        
         
     def stop_pdf_thread(self):
         self.cancel_thread()
@@ -1231,8 +1329,7 @@ class DataView(BaseTemplate):
         
         else:
             tkmb.showerror("Empty Data","Empty Search String Detected")
-            
-            
+                        
     def bulk_print_pdfs_thread(self):
         
         GUI_Handler().lock_gui_button(self.to_disable)
@@ -1261,12 +1358,6 @@ class DataView(BaseTemplate):
         GUI_Handler().unlock_gui_button(self.to_disable)
         GUI_Handler().remove_widget(self.quit)
         
-        
-    def bulk_pdfs_cancel(self):
-        self.cancel_thread()
-        GUI_Handler().unlock_gui_button(self.to_disable)
-        GUI_Handler().remove_widget(self.quit)
-    
     def bulk_print_pdfs_cover(self) -> None:
                 
         month = self.chosen_month
@@ -1295,16 +1386,643 @@ class DataView(BaseTemplate):
             self.process.start()
             self.thread.start()
 
+class FileInput(BaseTemplate):
+    
+    data:dict[str,pd.DataFrame] = None
+    sheet = ctk.StringVar(value='Sheet1')
+    row_index:int = 6
+    size:int = 12
+    max_row:int = 0
+    encryption:bool = False
+    prev_password:str = None
+    current_data:pd.DataFrame = None
+    
+    def __init__(self, outer:App):
+        self.outer = outer
+        master = self.outer.APP
+        
+        self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
+
+        # title
+        ctk.CTkLabel(master=self.frame , text=f"File Upload", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 25, "bold"),width=250).pack(pady=20,padx=10)
+
+        # file path input
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Select Excel File:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.file = ctk.CTkEntry(master=frame , text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.file.pack(padx=10,pady=10,side='left')
+        frame.pack()
+
+        # browse button
+        self.browse_button = ctk.CTkButton(master=self.frame , text="Browse", command=self.select_file, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.browse_button.pack(pady=10)
+        
+        self.upload_button = ctk.CTkButton(master=self.frame , text="Upload", command=self.load_decrypted_file, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        
+        # password frame
+        self.password_frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=self.password_frame, text="Enter Password for File:",text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.password_box = ctk.CTkEntry(master=self.password_frame ,show='*',text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.password_box.pack(padx=10,pady=10,side='left')
+
+        self.variable_frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        """ frames are added after file is uploaded """
+        
+        
+        frame = ctk.CTkFrame(master=self.variable_frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Sheet Present:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.sheetList = ctk.CTkOptionMenu(master=frame,variable=self.sheet,values=[],command=self.changeView,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=200)
+        self.sheetList.pack(side='left',pady=10, padx=10)
+        frame.pack()
+        
+        ctk.CTkLabel(master=self.variable_frame , text="Row Change:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
+        
+        frame = ctk.CTkFrame(master=self.variable_frame, fg_color=custom_color_scheme["fg_color"])
+        self.row_minus = ctk.CTkButton(master=frame , text="-", command=self.prev_row, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.row_minus.pack(side="left",padx=10)
+        self.row = ctk.CTkLabel(master=frame , text=f"{self.row_index}", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=150)
+        self.row.pack(side="left",padx=10)
+        self.row_plus = ctk.CTkButton(master=frame , text="+", command=self.next_row, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.row_plus.pack(side="left",padx=10)        
+        frame.pack(pady=10, padx=10)
+        
+        self.upload = ctk.CTkButton(master=self.variable_frame , text="Save to DB", command=self.go_to_upload, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.upload.pack(pady=10)
+        
+        self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_interface, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.back.pack(pady=10, padx=10)
+
+        ctk.CTkLabel(master=self.variable_frame , text="Text Size of Sheet:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
+        
+        frame = ctk.CTkFrame(master=self.variable_frame, fg_color=custom_color_scheme["fg_color"])
+        
+        self.size_minus = ctk.CTkButton(master=frame , text="-", command=self.decrease_size, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.size_minus.pack(side="left",padx=10)
+        self.font_size = ctk.CTkLabel(master=frame , text=f"{self.size}", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
+        self.font_size.pack(side="left",padx=10)
+        self.size_plus = ctk.CTkButton(master=frame , text="+", command=self.increase_size, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.size_plus.pack(side="left",padx=10)  
+        frame.pack()
+
+        self.text_excel = scrolledtext.ScrolledText(master=self.variable_frame, width=300, height=50,  bg="black", fg="white", wrap=tk.NONE, font=("Courier", 12))
+        x_scrollbar = Scrollbar(self.variable_frame, orient="horizontal",command=self.text_excel.xview)
+        x_scrollbar.pack(side='bottom', fill='x')
+
+        self.text_excel.configure(xscrollcommand=x_scrollbar.set)
+        self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
+        
+        
+        self.to_disable:list[ctk.CTkButton] = [self.upload_button,self.file,self.browse_button,self.password_box,self.row,self.row_minus,self.row_plus,self.sheetList,self.font_size,self.size_minus,self.size_plus,self.back]
+        self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread_wrapper, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+
+        
+    def back_to_interface(self):
+        self.hide()
+        self.outer.CHILD[Interface.__name__].appear()
+        
+    def go_to_upload(self):
+        # passing data
+        self.outer.CHILD[UploadData.__name__].data = self.current_data
+        self.hide()
+        GUI_Handler().view_excel(self.current_data,self.outer.CHILD[UploadData.__name__].text_excel)
+        self.outer.CHILD[UploadData.__name__].appear()
+        
+        
+    def cancel_thread_wrapper(self):
+        self.can_start_thread()
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+        
+    def next_row(self):
+        max_row = self.current_data.shape[0]
+        
+        self.row_index = min(max_row, self.row_index+1)
+        
+        GUI_Handler().changeText(self.row,self.row_index)
+        if(self.row_index==max_row): GUI_Handler().lock_gui_button([self.row_plus])
+        else:
+            self.get_data()
+            GUI_Handler().unlock_gui_button([self.row_minus])
+
+    def prev_row(self):
+        
+        self.row_index = max(0, self.row_index-1)
+        GUI_Handler().changeText(self.row,self.row_index)
+        
+        if(self.row_index==0): GUI_Handler().lock_gui_button([self.row_minus])
+        else:
+            self.get_data()
+            GUI_Handler().unlock_gui_button([self.row_plus])
+
+    def get_data(self):
+        file_path = self.file.get()
+        password = self.prev_password
+        
+        if(file_path):
+            
+            if(self.encryption and password):                
+                if(self.can_start_thread()):
+                    self.thread = Thread(target=self.change_row_thread,daemon=True)
+                    self.process = Process(target=Decryption().fetch_encrypted_file,kwargs={'queue': self.QUEUE,'file_path': file_path,'password':password,'skip':self.row_index},daemon=True)
+                    self.thread.start()
+                    self.process.start()
+                    
+            elif(self.encryption):
+                tkmb.showinfo('Encryption Status',f"File '{file_path}' is encrypted. Please enter the password")
+                
+            elif(not self.encryption):
+                if(self.can_start_thread()):
+                    self.thread = Thread(target=self.change_row_thread,daemon=True)
+                    self.process = Process(target=Decryption().fetch_decrypted_file,kwargs={'queue': self.QUEUE,'file_path': file_path,'skip':self.row_index},daemon=True)
+                    self.thread.start()
+                    self.process.start()
+        else:
+            tkmb.showerror('File Status',f"Empty file_path was detected")
 
 
+    def decrease_size(self):
+        self.font_size.configure(text=max(1,self.size-1))
+        self.size = max(1,self.size-1)
+        
+        GUI_Handler().change_text_font(self.text_excel,self.size)
+        GUI_Handler().unlock_gui_button([self.size_plus])
+        if(self.size==1): GUI_Handler().lock_gui_button([self.size_minus])
+        
+    def increase_size(self):
+        self.font_size.configure(text=min(25,self.size+1))
+        self.size = min(25,self.size+1)
+        
+        GUI_Handler().change_text_font(self.text_excel,self.size)
+        GUI_Handler().unlock_gui_button([self.size_minus])
+        if(self.size==25): GUI_Handler().lock_gui_button([self.size_plus])
+        
+    def encryption_check_thread(self):
+        """ Locks present GUI and places quit button after browse button """
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.browse_button,self.quit)  
+        
+    def set_after_upload_state(self):
+        """ Places variable frame and removes upload and password frame """
+        GUI_Handler().remove_widget(self.upload_button)
+        GUI_Handler().remove_widget(self.password_frame)
+        GUI_Handler().place_before(self.back,self.variable_frame)
+        
+    def set_after_file_is_encrypted_state(self):
+        """ Places password frame before upload button """
+        GUI_Handler().place_before(self.upload_button,self.password_frame)
+        
+    def set_for_file_upload_state(self):
+        """ Removes password and variable frame """
+        GUI_Handler()
+        GUI_Handler().remove_widget(self.variable_frame)
+        GUI_Handler().remove_widget(self.password_frame)
+        
+    def is_encrypted_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.browse_button,self.quit)
+        self.set_for_file_upload_state()  
+        GUI_Handler().changeCommand(self.upload_button,self.load_decrypted_file)
+        
+        is_encrypted:bool|None = None
+        
+        while True:
+            
+            if(self.stop_flag): return None
+            
+            try:
+                is_encrypted = self.QUEUE.get(block=False)
+                break
+            except: pass
+        
+        self.encryption = is_encrypted
+        
+        if(is_encrypted is not None):
+            GUI_Handler().place_after(self.browse_button,self.upload_button)
+            if(is_encrypted):
+                self.set_after_file_is_encrypted_state()
+                GUI_Handler().changeCommand(self.upload_button,self.load_encrypted_file)
+                
+                tkmb.showinfo('Encrypted Status',f"Excel File '{self.file.get()}' is encrypted. Please provide the password")
+        else:    
+            tkmb.showerror('File Status',f"File '{self.file.get()}' was not found")
+        
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+        
+        
+    def select_file(self) -> None:
+        file_path = filedialog.askopenfilename(filetypes=[("Excel Files", ".xlsx;.xls")])
+
+        if(file_path):
+            GUI_Handler().change_file_holder(self.file,file_path)
+            
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.is_encrypted_thread,daemon=True)
+                self.process = Process(target=Decryption().is_encrypted_wrapper,kwargs={'queue': self.QUEUE,'file_path': file_path},daemon=True)
+                self.thread.start()
+                self.process.start()
+        
+        else:
+            tkmb.showerror('File Status',f"Empty file_path was detected")
+            
+    
+    def load_unprotected_data_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.upload_button,self.quit)
+        self.set_for_file_upload_state()  
+        
+        sheets:list[str] = None
+        data:pd.DataFrame = None
+        
+        while True:
+            
+            if(self.stop_flag): return None
+            
+            try:
+                sheets, data = self.QUEUE.get(block=False)
+                break
+            except: pass
+        
+        if((sheets is not None) and (data is not None)):
+            self.data = data
+            self.current_data = data[sheets[0]]
+            GUI_Handler().setOptions(sheets,self.sheetList,self.sheet)
+            self.set_after_upload_state()
+            GUI_Handler().view_excel(data[sheets[0]],self.text_excel)
+            
+            tkmb.showinfo('Upload Status',f"Excel File '{self.file.get()}' was loaded")
+        else:
+            
+            tkmb.showwarning('File Status',f"Excel File '{self.file.get()}' could not be loaded")
+            
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+    
+    
+    def load_decrypted_file(self):
+        file_path = self.file.get()
+                
+        if(file_path):
+            
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.load_unprotected_data_thread,daemon=True)
+                self.process = Process(target=Decryption().fetch_decrypted_file,kwargs={'queue': self.QUEUE,'file_path': file_path,'skip':self.row_index},daemon=True)
+                self.thread.start()
+                self.process.start()
+        
+        else:
+            tkmb.showerror('File Status',f"Empty file_path was detected")
+    
+    
+    def load_protected_data_thread(self):
+        
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.upload,self.quit)
+        
+        sheets:list[str] = None
+        data:pd.DataFrame = None
+        
+        while True:
+            
+            if(self.stop_flag): return None
+            
+            try:
+                sheets, data = self.QUEUE.get(block=False)
+                break
+            except: pass
+        
+        if((sheets is not None) and (data is not None)):
+            self.data = data
+            self.current_data = data[sheets[0]]
+            GUI_Handler().setOptions(sheets,self.sheetList,self.sheet)
+            self.set_after_upload_state()
+            GUI_Handler().view_excel(data[sheets[0]],self.text_excel)
+            self.prev_password = self.password_box.get()
+            tkmb.showinfo('Upload Status',f"Excel File '{self.file.get()}' was loaded")
+        else:
+            
+            tkmb.showwarning('File Status',f"Excel File '{self.file.get()}' could not be loaded. Please check the password")
+            
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+        
+    def load_encrypted_file(self):
+        file_path = self.file.get()
+        password = self.password_box.get()
+        
+        if(file_path):
+            
+            if(self.encryption and (not password)):
+                tkmb.showinfo('Encryption Status',f"File '{file_path}' is encrypted. Please enter the password")
+                return None
+                
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.load_protected_data_thread,daemon=True)
+                self.process = Process(target=Decryption().fetch_encrypted_file,kwargs={'queue': self.QUEUE,'file_path': file_path,'password':password,'skip':self.row_index},daemon=True)
+                self.thread.start()
+                self.process.start()
+        
+        else:
+            tkmb.showerror('File Status',f"Empty file_path was detected")
+            
+    
+    def change_view_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        current_sheet = self.sheet.get()
+        self.current_data = self.data[current_sheet]
+        
+        GUI_Handler().view_excel(self.data[current_sheet],self.text_excel)
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        
+    def change_row_thread(self):
+        
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_before(self.text_excel,self.quit)
+        current_sheet = self.sheet.get()
+        data:pd.DataFrame = None
+        
+        while True:
+            
+            if(self.stop_flag): return None
+            
+            try:
+                _, data = self.QUEUE.get(block=False)
+                break
+            except: pass
+        
+        if((current_sheet is not None) and (data is not None)):
+            self.data = data
+            self.current_data = data[current_sheet]
+            self.set_after_upload_state()
+            GUI_Handler().view_excel(data[current_sheet],self.text_excel)
+            self.prev_password = self.password_box.get()
+        else:
+            
+            tkmb.showwarning('File Status',f"Excel File '{self.file.get()}' could not be loaded. Please check the password")
+        
+        GUI_Handler().view_excel(self.current_data,self.text_excel)
+        GUI_Handler().unlock_gui_button(self.to_disable)    
+        GUI_Handler().remove_widget(self.quit)
+        
+    
+    def changeView(self, event: tk.Event = None):
+        sheet = self.sheet.get()
+                
+        if(sheet):
+            
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.change_view_thread,daemon=True)
+                self.thread.start()
+        
+        else:
+            tkmb.showerror('File Status',f"Empty file_path was detected")
+
+class UploadData(BaseTemplate):
+    data:pd.DataFrame = None
+    size:int = 12    
+    
+    chosen_institute = ctk.StringVar(value='Somaiya')
+    chosen_type = ctk.StringVar(value='Teaching')
+    chosen_month = ctk.StringVar(value='Jan')   
+
+    def __init__(self, outer:App):
+        self.outer = outer
+        master = self.outer.APP
+        
+        self.frame = ctk.CTkScrollableFrame(master=master, fg_color=custom_color_scheme["fg_color"])
+
+        # title
+        ctk.CTkLabel(master=self.frame , text=f"Data Upload", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 25, "bold"),width=250).pack(pady=20,padx=10)
+
+        # file path input
+        ctk.CTkLabel(master=self.frame, text="Please Enter Details about data", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 18, "bold")).pack(padx=10,pady=10)
 
 
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Institute:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.entry_institute =ctk.CTkOptionMenu(master=frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.entry_institute.pack(pady=10, padx=10,side='left')
+        frame.pack()
+        
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Type:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.toggle_type = ctk.CTkOptionMenu(master=frame,variable=self.chosen_type,values=self.outer.TOGGLE[list(self.outer.TOGGLE.keys())[0]][0],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.toggle_type.pack(pady=10, padx=10,side='left')
+        frame.pack()
+        
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame, text="Month:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
+        self.entry_month = ctk.CTkOptionMenu(master=frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.entry_month.pack(pady=10, padx=10,side='left')
+        frame.pack()
+        
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        ctk.CTkLabel(master=frame , text="Enter Year:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(side='left',pady=10, padx=10)
+        self.entry_year = ctk.CTkEntry(master=frame ,placeholder_text="Eg. 2024", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
+        self.entry_year.pack(side='left',pady=10, padx=10)
+        frame.pack()
+        
+        self.create_button = ctk.CTkButton(master=self.frame , text='Create Table', command=self.create_in_db, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.create_button.pack(pady=10, padx=10)
+        
+        self.update_button = ctk.CTkButton(master=self.frame , text='Upload To DB', command=self.update_in_db, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        
+        self.delete_button = ctk.CTkButton(master=self.frame , text='Delete from DB', command=self.delete_from_db, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.delete_button.pack(pady=10, padx=10)
+        
+        ctk.CTkLabel(master=self.frame , text="Text Size of Sheet:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10,padx=10)
+        
+        frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
+        
+        self.size_minus = ctk.CTkButton(master=frame , text="-", command=self.decrease_size, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.size_minus.pack(side="left",padx=10)
+        self.font_size = ctk.CTkLabel(master=frame , text=f"{self.size}", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=100)
+        self.font_size.pack(side="left",padx=10)
+        self.size_plus = ctk.CTkButton(master=frame , text="+", command=self.increase_size, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=50)
+        self.size_plus.pack(side="left",padx=10)  
+        frame.pack()
+
+        self.text_excel = scrolledtext.ScrolledText(master=self.frame, width=300, height=50,  bg="black", fg="white", wrap=tk.NONE, font=("Courier", 12))
+        x_scrollbar = Scrollbar(self.frame, orient="horizontal",command=self.text_excel.xview)
+        x_scrollbar.pack(side='bottom', fill='x')
+
+        self.text_excel.configure(xscrollcommand=x_scrollbar.set)
+        self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
+        
+        self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_input, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.back.pack(pady=10, padx=10)
+        
+        self.to_disable:list[ctk.CTkButton] = [self.create_button,self.update_button,self.delete_button,self.size_minus,self.size_plus,self.back,self.entry_institute,self.entry_month,self.entry_year]
+        self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread_wrapper, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
 
 
+    def back_to_input(self):
+        self.hide()
+        GUI_Handler().remove_widget(self.update_button)
+        self.outer.CHILD[FileInput.__name__].appear()
+        
+    def cancel_thread_wrapper(self):
+        self.cancel_thread()
+        GUI_Handler().unlock_gui_button(self.to_disable)    
+        GUI_Handler().remove_widget(self.quit)
+        
+    def decrease_size(self):
+        self.font_size.configure(text=max(1,self.size-1))
+        self.size = max(1,self.size-1)
+        
+        GUI_Handler().change_text_font(self.text_excel,self.size)
+        GUI_Handler().unlock_gui_button([self.size_plus])
+        if(self.size==1): GUI_Handler().lock_gui_button([self.size_minus])
+        
+    def increase_size(self):
+        self.font_size.configure(text=min(25,self.size+1))
+        self.size = min(25,self.size+1)
+        
+        GUI_Handler().change_text_font(self.text_excel,self.size)
+        GUI_Handler().unlock_gui_button([self.size_minus])
+        if(self.size==25): GUI_Handler().lock_gui_button([self.size_plus])
 
+    def changeType(self, event:tk.Event = None):
+        institute = self.chosen_institute.get()
+        type = self.outer.TOGGLE[institute]
+        GUI_Handler().setOptions(type,self.toggle_type,self.chosen_type)
+        
+    def create_thread(self,month:str,year:int,institute:str,type:str):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.create_button,self.quit)
+        result:int = None
+    
+        while True:
+            if(self.stop_flag): return None
+            
+            try:
+                result = self.QUEUE.get(block=False)
+                break
+            except: pass
+            
+        
+        if(result is not None):
+            match result:
+                case -1: tkmb.showwarning('Column Info',"Duplicate Columns Found in Data")
+                case 0: tkmb.showwarning('Column Info',"HR EMP Code column not found!")
+                case 1: tkmb.showinfo("Database Status", f"Table {institute.lower()}_{type.lower()}_{month.lower()}_{year} was created. Data Insertion Possible")
+                case -2: tkmb.showinfo("Database Status", f"Table {institute.lower()}_{type.lower()}_{month.lower()}_{year} already exists and the columns of table doesn't match data's columns. Please do the necessary")
+                case 2: tkmb.showinfo("Database Status", f"Table {institute.lower()}_{type.lower()}_{month.lower()}_{year} already exists and the columns of table matches data's columns. Data Updation Possible")
+                case 3: tkmb.showinfo("Database Status", f"MySQL Error occured")
+                
+            if(result in {1,2}):
+                GUI_Handler().place_after(self.create_button,self.update_button)
+                
+        else:
+            tkmb.showinfo("Database Status", f"MySQL Error occured")
+        
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+                
+    
+    def create_in_db(self):
+        institute = self.chosen_institute.get()
+        type = self.chosen_type.get()
+        month = self.chosen_month.get()
+        year = self.entry_year.get()
+        
+        if(YEAR_CHECK(year)):
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.create_thread,kwargs={'month': month,'year': year,'institute': institute,'type': type},daemon=True)
+                self.process = Process(target=DatabaseWrapper(**self.outer.CRED).create_table,kwargs={'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month,'data_columns': list(self.data.columns)},daemon=True)
+                self.thread.start()
+                self.process.start()
+                
+        else:
+            tkmb.showwarning("Alert","Incorrect year format")
 
+    def update_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.update_button,self.quit)
+        result:int = None
+    
+        while True:
+            if(self.stop_flag): return None
+            
+            try:
+                result = self.QUEUE.get(block=False)
+                break
+            except: pass
+            
+        
+        if(result is not None):
+            match result:
+                case -1: tkmb.showwarning('Column Info',"Data Columns don't match table's columns")
+                case 0: tkmb.showwarning('Column Info',"HR EMP Code column not found or MySQL error occured")
+                case 1: tkmb.showinfo("Database Status", f"Data Upload Completed")
+                
+        else:
+            tkmb.showinfo("Database Status", f"MySQL Error occured")
+                
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
 
+    def update_in_db(self):
+        institute = self.chosen_institute.get()
+        type = self.chosen_type.get()
+        month = self.chosen_month.get()
+        year = self.entry_year.get()
+        data = self.data
+        
+        
+        if(YEAR_CHECK(year)):
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.update_thread,daemon=True)
+                self.process = Process(target=DatabaseWrapper(**self.outer.CRED).fill_table,kwargs={'data':data,'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month},daemon=True)
+                self.thread.start()
+                self.process.start()
+                
+        else:
+            tkmb.showwarning("Alert","Incorrect year format")
 
+    def delete_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().place_after(self.delete_button,self.quit)
+        result:bool = None
+    
+        while True:
+            if(self.stop_flag): return None
+            
+            try:
+                result = self.QUEUE.get(block=False)
+                break
+            except: pass
+            
+        
+        if(result is not None):
+            if(result):
+                tkmb.showinfo("Database Status", f"Table dropped successfully")
+            else:
+                tkmb.showinfo("Database Status", f"Table does not exists")
+                
+        else:
+            tkmb.showinfo("Database Status", f"MySQL Error occured")
+                
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+        
+
+    def delete_from_db(self):
+        institute = self.chosen_institute.get()
+        type = self.chosen_type.get()
+        month = self.chosen_month.get()
+        year = self.entry_year.get()
+        
+        
+        if(YEAR_CHECK(year)):
+            if(self.can_start_thread()):
+                self.thread = Thread(target=self.delete_thread,daemon=True)
+                self.process = Process(target=DatabaseWrapper(**self.outer.CRED).delete_table,kwargs={'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month},daemon=True)
+                self.thread.start()
+                self.process.start()
+                
+        else:
+            tkmb.showwarning("Alert","Incorrect year format")
 
 
 
