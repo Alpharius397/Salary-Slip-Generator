@@ -89,10 +89,13 @@ class BaseTemplate():
         to_disable = []        
         for i in range(len(all_attribute)):
             
+            
+            if((all_attribute[i]=="quit" or all_attribute[i]=="back")): continue
+            
             object = self.__getattribute__(all_attribute[i])
-            if((all_attribute[i]!="quit" or all_attribute[i]!="back") and (isinstance(object,ctk.CTkButton) or isinstance(object,ctk.CTkOptionMenu) or isinstance(object,ctk.CTkEntry))):
+            if((isinstance(object,ctk.CTkButton) or isinstance(object,ctk.CTkOptionMenu) or isinstance(object,ctk.CTkEntry))):
                 to_disable.append(object)
-                
+                print(all_attribute[i])
         return to_disable
 
 class App:
@@ -175,7 +178,6 @@ class PDFGenerator:
                 
         except Exception as e:
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
-            tkmb.showerror("Error", f"An error occurred while generating the PDF: {str(e)}")
             
             return (False,f"An error occurred while generating the PDF: {str(e)}")
 
@@ -359,11 +361,11 @@ class MailingWrapper:
         """ Wrapper for continuous mail sending """
         return mail.addTxtMsg(f"Please find attached below the salary slip of {self.month.capitalize()}-{self.year}",'plain').addAttach(pdf_path,f'employee_{id}.pdf').addDetails(f"Salary slip of {self.month.capitalize()}-{self.year}").sendMail(toAddr).resetMIME().status
                 
-    def massMail(self,email_server:Mailing,data:pd.DataFrame,code_column:str,email_col:str,dir_path:str,queue:Queue) -> None:
+    def massMail(self,data:pd.DataFrame,code_column:str,email_col:str,dir_path:str,queue:Queue) -> None:
         """ Sends email on basis of pdf files present in chosen directory """
                 
         count,total = 0, 0
-        email_server.login()
+        email_server = Mailing(**SMTP_CRED,error_log=ERROR_LOG).login()
         data = PandaGenerator(data,code_column)
         
         try:
@@ -396,7 +398,7 @@ class MailingWrapper:
         
         queue.put("Done")
         email_server.destroy()
-
+        
 class DatabaseWrapper:
     
     DATABASE:Database = Database(ERROR_LOG)
@@ -493,6 +495,7 @@ class MailCover(BaseTemplate):
         master = self.outer.APP
         self.frame = ctk.CTkScrollableFrame(master=master,fg_color=custom_color_scheme["fg_color"])
         
+        ctk.CTkLabel(master=self.frame , text="Mailing Option", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 25, "bold"),width=250).pack(pady=20,padx=10)
         ctk.CTkLabel(master=self.frame , text="Select mailing option", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10)
         ctk.CTkButton(master=self.frame, text='Single Mail', command=self.single, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         ctk.CTkButton(master=self.frame, text='Bulk Mail', command=self.many, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
@@ -506,12 +509,12 @@ class MailCover(BaseTemplate):
     def many(self) -> None:
         """ Redirect to Bulk Mailing """
         self.hide()
-        # self.outer.CHILD[SendMails.__name__].appear()
+        self.outer.CHILD[SendBulkMail.__name__].appear()
 
-    # back to landing
     def back_to_landing(self) -> None:
+        """ Returns back to Interface """
         self.hide() 
-        # self.outer.CHILD[Landing.__name__].appear()
+        self.outer.CHILD[Interface.__name__].appear()
 
 class SendMail(BaseTemplate):
     """ Page for single mail """    
@@ -538,7 +541,8 @@ class SendMail(BaseTemplate):
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame, text="Institute:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
-        ctk.CTkOptionMenu(master=frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        self.toggle_institute = ctk.CTkOptionMenu(master=frame,variable=self.chosen_institute,values=list(self.outer.TOGGLE.keys()),command=self.changeType,button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.toggle_institute.pack(pady=10, padx=10)
         frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
@@ -549,7 +553,8 @@ class SendMail(BaseTemplate):
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame, text="Month:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
-        ctk.CTkOptionMenu(master=frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
+        self.toggle_month = ctk.CTkOptionMenu(master=frame,variable=self.chosen_month,values=[str(i).capitalize() for i in self.outer.MONTH],button_color=custom_color_scheme["button_color"],fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.toggle_month.pack(pady=10, padx=10)
         frame.pack()
         
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
@@ -602,13 +607,14 @@ class SendMail(BaseTemplate):
             
             except: pass
             
-        GUI_Handler().unlock_gui_button(self.to_disable)
-        GUI_Handler().remove_widget(self.quit)
         
         if(done):
             tkmb.showinfo('Email Status',"Email Send Successfully")
         else:
             tkmb.showinfo('Email Status','Email was not send successfully')
+        
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
         
         
     def changeType(self, event:tk.Event = None):
@@ -661,6 +667,7 @@ class SendBulkMail(BaseTemplate):
     chosen_month = ctk.StringVar(value='Jan')  
     email_server = Mailing(SMTP_CRED['email'],SMTP_CRED['key'],ERROR_LOG)
     count, total = 0, 0
+    data:pd.DataFrame = None
     
     def __init__(self,outer:App):
         super().__init__()
@@ -704,12 +711,16 @@ class SendBulkMail(BaseTemplate):
         self.entry_year.pack(side='left',pady=10, padx=10)
         frame.pack()
         
-        mail_button = ctk.CTkButton(master=self.frame , text='Send Emails', command=self.sendEvery, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-        mail_button.pack(pady=10, padx=10)
+        self.exists_table = ctk.CTkButton(master=self.frame , text='Check Database', command=self.table_exists, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.exists_table.pack(pady=10, padx=10)
+        
+        self.mail_button = ctk.CTkButton(master=self.frame , text='Send Emails', command=self.send_mail, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+    
+        self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.button_mailing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.back.pack(pady=10, padx=10)
         
         self.quit = ctk.CTkButton(master=self.frame,text='Quit the process',command=self.cancel_thread_wrapper,fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         
-        ctk.CTkButton(master=self.frame , text='Back', command=self.button_mailing, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         self.to_disable = self.get_widgets_to_disable()
         
         
@@ -728,7 +739,7 @@ class SendBulkMail(BaseTemplate):
             
     def send_mail_thread_wrapper(self) -> None:
         GUI_Handler().lock_gui_button(self.to_disable)
-        GUI_Handler().place_after(self.browse_button,self.quit)
+        GUI_Handler().place_after(self.mail_button,self.quit)
         
         while True:
             
@@ -767,14 +778,31 @@ class SendBulkMail(BaseTemplate):
 
         file_path = self.folder.get()
         month = self.chosen_month.get()
-        year = self.year.get()
+        year = self.entry_year.get()
+        institute = self.chosen_institute.get()
+        type = self.chosen_type.get()
         
+        if(self.data is None):
+            tkmb.showwarning('Data Status',f'Data for {institute.capitalize()} {type.capitalize()} {month.capitalize()}/{year} was not found. Please do the necessary')
+            return
+        
+        code_col = mapping(self.data.columns,'hr emp code')
+        email_col = mapping(self.data.columns,'email mail')
+
+        if(code_col is None or email_col is None):
+            tkmb.showwarning('Column Missing','HR EMP CODE or Mail Column was not found')
+            return
+    
         if(not YEAR_CHECK(year)):
             tkmb.showwarning('Year Check','Improper Year format')
             return
                 
-        if((self.process is None) or (self.process and (not self.process.is_alive)) and (self.thread is None) or (self.thread and (not self.thread.is_alive))):
-            self.process = Process(target=MailingWrapper().change_state(month,year).attempt_mail_process,kwargs={'pdf_path': file_path,'toAddr': toAddr,'id': id,'queue':self.QUEUE},daemon=True)
+        if(not file_path):
+            tkmb.showwarning('File Path Check','File Path is empty')
+            return
+                
+        if(self.can_start_thread()):
+            self.process = Process(target=MailingWrapper().change_state(month,year).massMail,kwargs={'data': self.data,'code_column': code_col,'email_col': email_col,'dir_path': file_path,'queue':self.QUEUE},daemon=True)
             self.thread = Thread(target=self.send_mail_thread_wrapper,daemon=True)
             
             self.thread.start()
@@ -786,45 +814,62 @@ class SendBulkMail(BaseTemplate):
 
         if entry_folder:
             GUI_Handler().change_file_holder(self.folder,entry_folder)
-
+            
+            
+    def table_exists_thread(self):
+        GUI_Handler().lock_gui_button(self.to_disable)
+        GUI_Handler().changeCommand(self.quit,self.table_exists_cancel_thread)
+        GUI_Handler().place_after(self.exists_table,self.quit)
+        
+        data:pd.DataFrame = None
+        
+        while True:
+            
+            if(self.stop_flag): return None
+            
+            try:
+                data = self.QUEUE.get(block=False)
+                break
+            except: pass
+            
+        if(data is not None):
+            GUI_Handler().place_after(self.exists_table,self.mail_button)
+            tkmb.showinfo('Database Status',f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} exists in database. Mass Mailing available")
+            self.data = data
+        else:
+            tkmb.showinfo('Database Status',f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} doesn't exist in database. Please upload data to database")
+            
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+        
+    def table_exists_cancel_thread(self):
+        self.cancel_thread()
+        
+        tkmb.showinfo('Database Status',"Data Fetching Halted")
+        
+        GUI_Handler().unlock_gui_button(self.to_disable)
+        GUI_Handler().remove_widget(self.quit)
+            
+    
+    def table_exists(self):
+        month = self.chosen_month.get()
+        year = self.entry_year.get()
+        
+        if(not YEAR_CHECK(year)):
+            tkmb.showwarning('Year Check','Improper Year format')
+            return
+                
+        if(self.can_start_thread()):
+            self.process = Process(target=DatabaseWrapper(**self.outer.CRED).get_data,kwargs={'queue':self.QUEUE,'institute': self.chosen_institute.get(),'type': self.chosen_type.get(),'year': year,'month': month},daemon=True)
+            self.thread = Thread(target=self.table_exists_thread,daemon=True)
+            
+            self.thread.start()
+            self.process.start()
 
     # back button
     def button_mailing(self) -> None:
         self.hide()
         self.outer.CHILD[MailCover.__name__].appear()
-        
-
-    # fetches data from the chosen table
-    def sendEvery(self) -> None:
-        month = self.month.get().lower()
-        year = self.year.get()
-        chosen = self.chosen.get().lower()
-        type_ = self.type_.get().lower()
-        pdf_path = self.folder.get()
-        
-        global stop_email
-        
-        if YEAR_CHECK(year):
-            data = self.outer.db.fetchAll(month,year,chosen,type_)
-        else:
-            tkmb.showwarning("Alert","Incorrect year format")
-            return
-            
-        if data is not None:
-            email_col = mapping(data,'email mail')
-            code_col = mapping(data,'hr emp code')
-
-            if email_col and code_col:
-                
-                if((self.thread is None) or (not(self.thread and self.thread.is_alive()))):
-                    stop_email = False
-                    self.thread = Thread(daemon=True,target=MailSending(month=month,year=year,type_=type_,insti=chosen).massMail,kwargs={'data':data,'code_column': code_col,'email_col': email_col,'pdf_path': pdf_path,'caller': self.mass_mail,'quit':self.stop_email})
-                    self.thread.start()
-            else:
-                tkmb.showerror('Data Status','Data in DB does not have either HR EMP CODE/Email column')
-
-        else:
-            tkmb.showerror('Data Status','Data is not present in DB.\n Please upload data to DB')
 
 class Login(BaseTemplate):
     """ Login Page """
@@ -852,8 +897,6 @@ class Login(BaseTemplate):
 
         ctk.CTkButton(master=self.frame, text='Login', command=self.login, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         ctk.CTkButton(master=self.frame, text='Exit', command=self.quit, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-        
-        self.to_disable = self.get_widgets_to_disable()
 
     def login(self) -> None:
         """ Check username and password """
@@ -917,7 +960,6 @@ class MySQLLogin(BaseTemplate):
         
         ctk.CTkButton(master=self.frame, text='Continue', command=self.next, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
         ctk.CTkButton(master=self.frame, text='Back', command=self.back, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250).pack(pady=10, padx=10)
-        self.to_disable = self.get_widgets_to_disable()
 
     # back to login page
     def back(self):
@@ -956,11 +998,11 @@ class Interface(BaseTemplate):
         self.preview_db = ctk.CTkButton(master=self.frame , text='Preview Existing Data', command=self.preview, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.preview_db.pack(pady=10, padx=10)
         
-        upload = ctk.CTkButton(master=self.frame , text='Upload Excel data', command=self.upload, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-        upload.pack(pady=10, padx=10)
+        self.upload_button = ctk.CTkButton(master=self.frame , text='Upload Excel data', command=self.upload, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.upload_button.pack(pady=10, padx=10)
         
-        mail = ctk.CTkButton(master=self.frame , text='Send Mail', command=self.mail, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
-        mail.pack(pady=10, padx=10)
+        self.mail_button = ctk.CTkButton(master=self.frame , text='Send Mail', command=self.mail, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
+        self.mail_button.pack(pady=10, padx=10)
         
         self.back = ctk.CTkButton(master=self.frame , text='Back', command=self.back_to_mysql, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.back.pack(pady=10, padx=10)
@@ -1169,8 +1211,8 @@ class DataPreview(BaseTemplate):
         
         self.outer.CHILD[DataView.__name__].chosen_month = curr_month
         self.outer.CHILD[DataView.__name__].chosen_year = curr_year
-        self.outer.CHILD[DataView.__name__].chosen_type = curr_institute
-        self.outer.CHILD[DataView.__name__].chosen_institute = curr_type
+        self.outer.CHILD[DataView.__name__].chosen_type = curr_type
+        self.outer.CHILD[DataView.__name__].chosen_institute = curr_institute 
         self.outer.CHILD[DataView.__name__].changeHeading()
         
         if (self.can_start_thread()):
@@ -1358,8 +1400,8 @@ class DataView(BaseTemplate):
         
         GUI_Handler().lock_gui_button(self.to_disable)
         GUI_Handler().place_after(self.bulk_print,self.quit)
-        done:int|None = None
-        total:int|None = None
+        done:int = None
+        total:int = None
         
         while True:
             if(self.stop_flag): return None
@@ -1415,7 +1457,7 @@ class FileInput(BaseTemplate):
     data:dict[str,pd.DataFrame] = None
     sheet = ctk.StringVar(value='Sheet1')
     row_index:int = 6
-    size:int = 12
+    size:int = 0
     max_row:int = 0
     encryption:bool = False
     prev_password:str = None
@@ -1495,7 +1537,6 @@ class FileInput(BaseTemplate):
 
         self.text_excel.configure(xscrollcommand=x_scrollbar.set)
         self.text_excel.pack(pady=10,padx=10, fill='both', expand=True)
-        
         
         self.quit = ctk.CTkButton(master=self.frame, text='Quit the Process',command=self.cancel_thread_wrapper, fg_color=custom_color_scheme["button_color"], font=("Ubuntu", 16, "bold"),width=250)
         self.to_disable = self.get_widgets_to_disable()
@@ -1597,7 +1638,6 @@ class FileInput(BaseTemplate):
         
     def set_for_file_upload_state(self):
         """ Removes password and variable frame """
-        GUI_Handler()
         GUI_Handler().remove_widget(self.variable_frame)
         GUI_Handler().remove_widget(self.password_frame)
         
@@ -1607,7 +1647,7 @@ class FileInput(BaseTemplate):
         self.set_for_file_upload_state()  
         GUI_Handler().changeCommand(self.upload_button,self.load_decrypted_file)
         
-        is_encrypted:bool|None = None
+        is_encrypted:bool = None
         
         while True:
             
@@ -1672,7 +1712,7 @@ class FileInput(BaseTemplate):
             self.current_data = data[sheets[0]]
             GUI_Handler().setOptions(sheets,self.sheetList,self.sheet)
             self.set_after_upload_state()
-            GUI_Handler().view_excel(data[sheets[0]],self.text_excel)
+            GUI_Handler().view_excel(self.current_data,self.text_excel)
             
             tkmb.showinfo('Upload Status',f"Excel File '{self.file.get()}' was loaded")
         else:
@@ -1701,7 +1741,7 @@ class FileInput(BaseTemplate):
     def load_protected_data_thread(self):
         
         GUI_Handler().lock_gui_button(self.to_disable)
-        GUI_Handler().place_after(self.upload,self.quit)
+        GUI_Handler().place_after(self.upload_button,self.quit)
         
         sheets:list[str] = None
         data:pd.DataFrame = None
@@ -1720,7 +1760,8 @@ class FileInput(BaseTemplate):
             self.current_data = data[sheets[0]]
             GUI_Handler().setOptions(sheets,self.sheetList,self.sheet)
             self.set_after_upload_state()
-            GUI_Handler().view_excel(data[sheets[0]],self.text_excel)
+            GUI_Handler().view_excel(self.current_data,self.text_excel)
+            
             self.prev_password = self.password_box.get()
             tkmb.showinfo('Upload Status',f"Excel File '{self.file.get()}' was loaded")
         else:
@@ -1755,7 +1796,7 @@ class FileInput(BaseTemplate):
         current_sheet = self.sheet.get()
         self.current_data = self.data[current_sheet]
         
-        GUI_Handler().view_excel(self.data[current_sheet],self.text_excel)
+        GUI_Handler().view_excel(self.current_data,self.text_excel)
         GUI_Handler().unlock_gui_button(self.to_disable)
         
     def change_row_thread(self):
@@ -1821,7 +1862,6 @@ class UploadData(BaseTemplate):
 
         # file path input
         ctk.CTkLabel(master=self.frame, text="Please Enter Details about data", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 18, "bold")).pack(padx=10,pady=10)
-
 
         frame = ctk.CTkFrame(master=self.frame, fg_color=custom_color_scheme["fg_color"])
         ctk.CTkLabel(master=frame, text="Institute:", text_color=custom_color_scheme["text_color"], font=("Ubuntu", 16, "bold")).pack(padx=10,pady=10,side='left')
@@ -1951,7 +1991,7 @@ class UploadData(BaseTemplate):
         year = self.entry_year.get()
         
         if(YEAR_CHECK(year)):
-            if(self.can_start_thread()):
+            if(self.can_start_thread() and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue: {institute}, Type: {type} \n Are you sure details are correct?")):
                 self.thread = Thread(target=self.create_thread,kwargs={'month': month,'year': year,'institute': institute,'type': type},daemon=True)
                 self.process = Process(target=DatabaseWrapper(**self.outer.CRED).create_table,kwargs={'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month,'data_columns': list(self.data.columns)},daemon=True)
                 self.thread.start()
@@ -1995,7 +2035,7 @@ class UploadData(BaseTemplate):
         
         
         if(YEAR_CHECK(year)):
-            if(self.can_start_thread()):
+            if(self.can_start_thread() and messagebox.askyesnocancel("Table exists", "This data already exists. Would you like to update it?")):
                 self.thread = Thread(target=self.update_thread,daemon=True)
                 self.process = Process(target=DatabaseWrapper(**self.outer.CRED).fill_table,kwargs={'data':data,'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month},daemon=True)
                 self.thread.start()
@@ -2039,7 +2079,7 @@ class UploadData(BaseTemplate):
         
         
         if(YEAR_CHECK(year)):
-            if(self.can_start_thread()):
+            if(self.can_start_thread() and messagebox.askyesnocancel("Confirmation", f"Month: {month}, Year: {year} \n Institue:{institute}, Type: {type} \n Are you sure you want to clear this data from DB?")):
                 self.thread = Thread(target=self.delete_thread,daemon=True)
                 self.process = Process(target=DatabaseWrapper(**self.outer.CRED).delete_table,kwargs={'queue': self.QUEUE,'institute': institute,'type': type,'year': year,'month': month},daemon=True)
                 self.thread.start()
@@ -2053,5 +2093,4 @@ class UploadData(BaseTemplate):
 if __name__ == "__main__":
     # initialize main app
     app = App(500,500,'Machine Spirit')
-    # print(app.CHILD[FileInput.__name__].get_widgets_to_disable())
     app.start_app()

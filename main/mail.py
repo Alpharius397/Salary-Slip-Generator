@@ -101,4 +101,3 @@ class Mailing():
         
     def add_smtp_info(self, msg:str) -> None:
         self.error.write_info(msg,'SMTP')
-
