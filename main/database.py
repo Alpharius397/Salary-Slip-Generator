@@ -4,7 +4,6 @@ from collections import defaultdict
 import re
 import numpy as np
 from logger import Logger
-import os
 
 class Database():
     def __init__(self,error_logger:Logger) -> None:
@@ -50,7 +49,7 @@ class Database():
         
         try:
             
-            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ f"{col}" + ' VARCHAR(225) PRIMARY KEY' if col==code_col else f"{col}" + ' VARCHAR(225)' for col in columns])})"
+            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ f'{col}' + ' VARCHAR(225) PRIMARY KEY' if col==code_col else f'{col}' + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
             print('Table Created')
@@ -232,7 +231,7 @@ class Database():
     
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
-    rename = lambda x: x.strip().replace(':',"_").replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
+    rename = lambda x: x.strip().replace(':',"_").replace("'","").replace('"','').replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
 
     data.rename(columns={col:rename(str(col)) for col in data.columns},inplace=True)
 
@@ -249,7 +248,7 @@ def cleanData(val:str|int|float) -> str:
     txt = re.findall(r"(\d{4})[-,/](\d{1,2})[-,/](\d{1,2})",val)
     val='-'.join([i for i in txt[0][::-1]]) if txt else val
 
-    return str(val)
+    return str(val).replace('"',"'")
 
 # tries to find columns based on the frequency of word in column
 def mapping(pd_columns:list[str],columns:str) -> str | None:

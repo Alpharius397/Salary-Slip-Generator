@@ -1,5 +1,5 @@
 import logging
-import os,re
+import os
 
 class Logger:
     def __init__(self, dir_path:str) -> None:
