@@ -76,6 +76,7 @@ class Database():
     # updates existing data or inserts new data
     def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
         id = mapping(data.columns,'hr emp code')
+        columns = {j:i for i,j in enumerate(data.columns)}
 
         if (sorted(self.getColumns(month,year,insti,type))!=sorted(data.columns)):
             return -1
@@ -85,9 +86,9 @@ class Database():
             print(" HR EMP CODE not found or MySQL connection failed ")
             return 0
             
-        for i in PandaGenerator(data,id):
-            
-            new = {col:cleanData(i[col].values) for col in i.columns}
+        for _,row in data.iterrows():
+            row_data = row.to_numpy()
+            new = {col:cleanData(row_data[columns[col]]) for col in data.columns}
             query =','.join([f"{col}='{new[col]}'" for col in new])
             keys = ','.join(new.keys())
             values = ','.join([ f"'{i}'" for i in new.values()])
@@ -145,7 +146,7 @@ class Database():
         {'Somaiya':['Teaching','NonTeaching','Temporary'],'SVV':['svv']}
         {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sept":9, "oct":10, "nov":11, "dec":12}
         table_format = r'^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})$' # insti_type_month_year
-        print(self.status)
+    
         if(not self.status): return memo
         
         cursor = self.db.cursor()
@@ -327,41 +328,6 @@ def get_salary_column(pd_columns:list[str]):
             "other":mapping(columns="other special allowance",pd_columns=pd_columns),
             "pf_amount":mapping(columns="pf rs",pd_columns=pd_columns)
             }
-
-
-class PandaGenerator:
-    def __init__(self,data: pd.DataFrame,unique_column:str) -> None:
-        self.data = data
-        self.unique = unique_column
-        self.columns = {j:i for i,j in enumerate(self.data.columns)}
-        self.memo = self._make_memo()
-        self.keys = list(self.memo.keys())
-        self.idx = -1
-
-    def _make_memo(self):
-        memo = {}
-                
-        for i in self.data.iterrows():
-            idx = i[1].values[self.columns[self.unique]]
-            memo[idx] = i[1]
-            
-        return memo
-    def __iter__(self): return self
-    
-    def __next__(self):
-        if(self.idx>len(self.keys)-2): raise StopIteration
-    
-        self.idx+=1
-        return pd.DataFrame([self.memo[self.keys[self.idx]]],columns=list(self.columns.keys()))
-    
-    def __getitem__(self,index) -> pd.DataFrame:
-        if(index not in self.memo):
-            raise KeyError(f"Key: {index} not found")
-        return pd.DataFrame([self.memo[index]],columns=list(self.columns.keys()))
-    
-    def dict_iter(self):
-        return self.memo
-
     
 # Optimized Gemini Code
 # import pandas as pd
@@ -375,12 +341,15 @@ class PandaGenerator:
 #         return pd_data[best_match].values[0]
 #     else:
 #         return 'None'
-
+# er = Logger('C://Users//RAJ//Desktop//PDF//Excel-to-Pdf-Generator//main//')
 # asd = Database(er).connectDatabase('localhost','root','1234','somaiya_salary')
 # print(asd.showTables())
 # data = asd.fetchAll('jan','2024','somaiya','teaching')
 # print(data.columns)
 # pan = PandaGenerator(data,'hr_emp_code')
 # print(pan['220017'])
+# for i,j in data.iterrows():
+#     print(j.to_numpy())
+    
 # print(pan.dict_iter())
 # print(pan.data[data.columns[0]])

@@ -14,7 +14,7 @@ class Logger:
         self.log.setLevel(logging.DEBUG)
                 
     def write_error(self, msg:str, where:str = 'APPLICATION') -> None:
-        self.log.warning(f"[{where}] {msg}")
+        self.log.warning(msg=f"[{where}] {msg}",exc_info=True)
 
     def write_info(self, msg:str, where:str = 'APPLICATION') -> None:
         self.log.info(f"[{where}] {msg}")
