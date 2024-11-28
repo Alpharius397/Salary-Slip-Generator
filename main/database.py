@@ -238,9 +238,6 @@ def dataRefine(data:pd.DataFrame) -> None:
 
 def cleanData(val:str|int|float) -> str:
     
-    if len(val)==0:
-        return ""
-    val = val[0]
     try:
         val = int(val) if ((type(val)==np.int64) or (type(val)==np.float64) or (type(val)==float) or (type(val)==int)) else str(val)
     except:
