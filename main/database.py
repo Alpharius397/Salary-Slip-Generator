@@ -41,10 +41,6 @@ class Database():
             print(" HR EMP CODE not found or mysql connection failed ")
             return 0
         
-        # Shouldn't happen
-        if(len(set(columns))<len(columns)):
-            return -1
-        
         cursor = self.db.cursor()
         
         try:
