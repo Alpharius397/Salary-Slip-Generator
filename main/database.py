@@ -284,7 +284,7 @@ def get_salary_column(pd_columns:list[str]):
             "cla":mapping(columns="cla",pd_columns=pd_columns),
             "ta":mapping(columns="ta",pd_columns=pd_columns),
             "vehicle":mapping(columns="vehicle driver",pd_columns=pd_columns),
-            "arrers":mapping(columns="salary special other allowance",pd_columns=pd_columns),
+            "arrers":mapping(columns="salary special allowance",pd_columns=pd_columns),
             "books":mapping(columns="books periodicals",pd_columns=pd_columns),
             "tele":mapping(columns="telephone",pd_columns=pd_columns),
             "lta":mapping(columns="lta Alw",pd_columns=pd_columns),
@@ -318,7 +318,7 @@ def get_salary_column(pd_columns:list[str]):
             "scale":mapping(columns="scale",pd_columns=pd_columns),
             "personal":mapping(columns="personal loan staff from bank",pd_columns=pd_columns),
             "agp/gp":mapping(columns="agp gp",pd_columns=pd_columns),
-            "other":mapping(columns="other special allowance",pd_columns=pd_columns),
+            "other":mapping(columns="other exam rem",pd_columns=pd_columns),
             "pf_amount":mapping(columns="pf rs",pd_columns=pd_columns)
             }
     
