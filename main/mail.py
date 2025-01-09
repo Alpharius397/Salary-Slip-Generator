@@ -14,8 +14,7 @@ class Mailing():
         self.msg = MIMEMultipart()
         self.msg['From'] = email
         self.status = True
-        self.smtp = smtplib.SMTP('smtp.gmail.com', 587)
-    
+            
     #adds text-based messages to email
     def addTxtMsg(self,msg:str,msgType:str) -> 'Mailing':
         part = MIMEText(msg,f'{msgType}')
@@ -58,6 +57,7 @@ class Mailing():
     def login(self) -> 'Mailing':
         try:
             if self.status: 
+		self.smtp = smtplib.SMTP('smtp.gmail.com', 587)
                 self.smtp.starttls()
                 self.smtp.login(self.email,self.key)
                 self.add_smtp_info('Login Successful')
