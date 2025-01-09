@@ -14,8 +14,8 @@ class Mailing():
         self.msg = MIMEMultipart()
         self.msg['From'] = email
         self.status = True
-        self.smtp = None
-            
+        self.smtp:smtplib.SMTP = None
+    
     #adds text-based messages to email
     def addTxtMsg(self,msg:str,msgType:str) -> 'Mailing':
         part = MIMEText(msg,f'{msgType}')
