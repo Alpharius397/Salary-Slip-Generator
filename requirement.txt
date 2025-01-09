@@ -12,7 +12,7 @@ Requirements:
 add wthmltopdf to path:
     add it to path environment variable
 
-to reduce exe size:
+to reduce exe size:    
     make a new venv
     install only required library
     install pyinstaller
