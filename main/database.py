@@ -141,7 +141,7 @@ class Database():
         memo = {}
         {'Somaiya':['Teaching','NonTeaching','Temporary'],'SVV':['svv']}
         {"jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sept":9, "oct":10, "nov":11, "dec":12}
-        table_format = r'^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})$' # insti_type_month_year
+        table_format = r'^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z' # insti_type_month_year
     
         if(not self.status): return memo
         
@@ -169,7 +169,7 @@ class Database():
                 memo[_insti][_type][_year].add(_month)
 
             else:
-                expected_format = "Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})$"
+                expected_format = "Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z"
                 self.add_mysql_error(f"Unexpected table name format: {table}. {expected_format}")
                 print(f"Unexpected table name format: {table}. {expected_format}")
 
