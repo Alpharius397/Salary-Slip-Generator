@@ -27,6 +27,3 @@ class Logger:
         
 # asd = Logger(os.path.dirname(__file__))
 # asd.write_error('works')
-import re
-asd = r'^a\Z'
-print(re.match(asd,'a'))
