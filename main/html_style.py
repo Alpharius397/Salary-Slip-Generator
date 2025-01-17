@@ -70,7 +70,9 @@ HTML_CONTENT = """
         .section tr{
             height: 30px;
         }
-
+        .table td {
+            vertical-align: top;
+        }
     </style>
 </head>
 <body>
