@@ -48,13 +48,12 @@ class Database():
             sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ f'{col}' + ' VARCHAR(225) PRIMARY KEY' if col==code_col else f'{col}' + ' VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
-            print('Table Created')
+            self.add_mysql_info(f'Created table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
             self.db.commit()
             return 1
 
         except mysql.errors.ProgrammingError as e:
             self.add_mysql_error(self.logger.get_error_info(e))
-            print('Table Exists')
             if(sorted(self.getColumns(month,year,insti,type))!=sorted(columns)):
                 return -2
             else:
@@ -93,12 +92,14 @@ class Database():
             try:
 
                 cursor.execute(f"INSERT INTO {insti.lower()}_{type.lower()}_{month.lower()}_{year} ({keys}) VALUE ({values});")    
+                self.add_mysql_info(f'Inserting data into {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
 
             except mysql.errors.IntegrityError as e:
                 self.add_mysql_error(self.logger.get_error_info(e))
                 
                 try:
                     cursor.execute(f"UPDATE {insti.lower()}_{type.lower()}_{month.lower()}_{year} SET {query} WHERE {id}={new[id]};")
+                    self.add_mysql_info(f'Updating data into {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
                     
                 except Exception as f:
                     self.add_mysql_error(self.logger.get_error_info(f))
@@ -123,12 +124,13 @@ class Database():
         cursor = self.db.cursor()
         try:
             cursor.execute(f'drop table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+            self.add_mysql_info(f'Deleting data from {insti.lower()}_{type.lower()}_{month.lower()}_{year} (Hope you have backup!)')
+            
             self.db.commit()
 
             return True
         except mysql.ProgrammingError as f:
             self.add_mysql_error(self.logger.get_error_info(f))
-            print("Table doesn't exists")
             return False
         
         except Exception as e:
@@ -149,9 +151,10 @@ class Database():
         try:
             cursor.execute('SHOW TABLES')
             tables = [i[0] for i in cursor.fetchall()]
+            self.add_mysql_info(f'Fetching table(s) info')
+            
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    
-            print('MySQL Error Occured!')
             return memo
 
         for table in tables:
@@ -171,7 +174,6 @@ class Database():
             else:
                 expected_format = "Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z"
                 self.add_mysql_error(f"Unexpected table name format: {table}. {expected_format}")
-                print(f"Unexpected table name format: {table}. {expected_format}")
 
         return memo
 
@@ -184,6 +186,8 @@ class Database():
 
         try:
             cursor.execute(f'desc {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+            self.add_mysql_info(f'Checking table {insti.lower()}_{type.lower()}_{month.lower()}_{year} info')
+            
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    
             print('MySQL Error Occured! (Tables does not exist)')
@@ -202,10 +206,11 @@ class Database():
 
         try:
             cursor.execute(f"SELECT * FROM {insti.lower()}_{type.lower()}_{month.lower()}_{year}")
+            self.add_mysql_info(f'Fetching data from table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
             result = cursor.fetchall()
+            
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    
-            print('Table does not exists')
             return None
         
         columns = self.getColumns(month,year,insti,type)
@@ -215,6 +220,8 @@ class Database():
     def endDatabase(self):
         try:
             if self.db: self.db.close()
+            self.add_mysql_info(f'Closing connection o7')
+            
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    
             
