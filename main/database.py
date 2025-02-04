@@ -45,10 +45,10 @@ class Database():
         
         try:
             
-            sql = f"CREATE TABLE {insti.lower()}_{type.lower()}_{month.lower()}_{year}({','.join([ f'{col}' + ' VARCHAR(225) PRIMARY KEY' if col==code_col else f'{col}' + ' VARCHAR(225)' for col in columns])})"
+            sql = f"CREATE TABLE {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}({','.join([ f'{sanitize_column(col)} VARCHAR(225) PRIMARY KEY' if (col==code_col) else f'{sanitize_column(col)} VARCHAR(225)' for col in columns])})"
             cursor.execute(sql)
 
-            self.add_mysql_info(f'Created table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+            self.add_mysql_info(f'Created table {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")}')
             self.db.commit()
             return 1
 
@@ -84,22 +84,22 @@ class Database():
         for _,row in data.iterrows():
             row_data = row.to_numpy()
             new = {col:cleanData(row_data[columns[col]]) for col in data.columns}
-            query =','.join([f"{col}='{new[col]}'" for col in new])
-            keys = ','.join(new.keys())
-            values = ','.join([ f"'{i}'" for i in new.values()])
+            query =','.join([f"{sanitize_column(col)}={sanitize_value(new[col])}" for col in new])
+            keys = ','.join(map(sanitize_column,list(new.keys())))
+            values = ','.join(map(sanitize_value,list(new.values())))
 
             cursor = self.db.cursor()
             try:
 
-                cursor.execute(f"INSERT INTO {insti.lower()}_{type.lower()}_{month.lower()}_{year} ({keys}) VALUE ({values});")    
-                self.add_mysql_info(f'Inserting data into {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+                cursor.execute(f"INSERT INTO {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')} ({keys}) VALUE ({values});")    
+                self.add_mysql_info(f"Inserting data into {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}")
 
             except mysql.errors.IntegrityError as e:
                 self.add_mysql_error(self.logger.get_error_info(e))
                 
                 try:
-                    cursor.execute(f"UPDATE {insti.lower()}_{type.lower()}_{month.lower()}_{year} SET {query} WHERE {id}={new[id]};")
-                    self.add_mysql_info(f'Updating data into {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+                    cursor.execute(f"UPDATE {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')} SET {query} WHERE {sanitize_column(id)}={sanitize_value(new[id])};")
+                    self.add_mysql_info(f"Updating data into {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}")
                     
                 except Exception as f:
                     self.add_mysql_error(self.logger.get_error_info(f))
@@ -123,8 +123,8 @@ class Database():
 
         cursor = self.db.cursor()
         try:
-            cursor.execute(f'drop table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
-            self.add_mysql_info(f'Deleting data from {insti.lower()}_{type.lower()}_{month.lower()}_{year} (Hope you have backup!)')
+            cursor.execute(f'drop table {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")}')
+            self.add_mysql_info(f'Deleting data from {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")} (Hope you have backup!)')
             
             self.db.commit()
 
@@ -185,8 +185,8 @@ class Database():
         cursor = self.db.cursor(buffered=True)
 
         try:
-            cursor.execute(f'desc {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
-            self.add_mysql_info(f'Checking table {insti.lower()}_{type.lower()}_{month.lower()}_{year} info')
+            cursor.execute(f'desc {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")}')
+            self.add_mysql_info(f'Checking table {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")} info')
             
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    
@@ -205,8 +205,8 @@ class Database():
         cursor = self.db.cursor(buffered=True)
 
         try:
-            cursor.execute(f"SELECT * FROM {insti.lower()}_{type.lower()}_{month.lower()}_{year}")
-            self.add_mysql_info(f'Fetching data from table {insti.lower()}_{type.lower()}_{month.lower()}_{year}')
+            cursor.execute(f"SELECT * FROM {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}")
+            self.add_mysql_info(f"Fetching data from table {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}")
             result = cursor.fetchall()
             
         except Exception as e:
@@ -232,7 +232,17 @@ class Database():
             
     def add_mysql_info(self, msg:str):
         self.logger.write_info(msg,'MySQL')        
-    
+
+
+def sanitize_column(txt:str) -> str:
+    """ Sanitizing identifiers """
+    def func(txt:str): return str(txt).replace('`','``').replace('\n','').strip()
+    return f"`{func(txt)}`"
+
+def sanitize_value(txt:str) -> str:
+    """ Sanitizing values """
+    return f"""'{str(txt).replace("'","''").strip()}'"""
+
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
     rename = lambda x: x.strip().replace(':',"_").replace("'","").replace('"','').replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
