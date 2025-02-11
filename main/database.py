@@ -241,7 +241,7 @@ def sanitize_column(txt:str) -> str:
 
 def sanitize_value(txt:str) -> str:
     """ Sanitizing values """
-    return f"""'{str(txt).replace("'","''").strip()}'"""
+    return f"""'{str(txt).replace("'","''").replace('\n','').strip()}'"""
 
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
@@ -290,76 +290,3 @@ def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
         return pd_Data[pred_col].values[0]
     else: 
         return None
-
-def get_salary_column(pd_columns:list[str]):
-    return {
-            "org_basic":mapping(columns="org basic",pd_columns=pd_columns),
-            "basic_sal":mapping(columns="basic present salary",pd_columns=pd_columns),
-            "agp/gp":mapping(columns="agp gp",pd_columns=pd_columns),
-            "da":mapping(columns="da percent",pd_columns=pd_columns),
-            "hra":mapping(columns="hra",pd_columns=pd_columns),
-            "cla":mapping(columns="cla",pd_columns=pd_columns),
-            "ta":mapping(columns="ta",pd_columns=pd_columns),
-            "vehicle":mapping(columns="vehicle driver",pd_columns=pd_columns),
-            "arrers":mapping(columns="salary special allowance",pd_columns=pd_columns),
-            "books":mapping(columns="books periodicals",pd_columns=pd_columns),
-            "tele":mapping(columns="telephone",pd_columns=pd_columns),
-            "lta":mapping(columns="lta Alw",pd_columns=pd_columns),
-            "ex-grataia":mapping(columns="ex grataia",pd_columns=pd_columns),
-            "entertain":mapping(columns="entertainment allw.",pd_columns=pd_columns),
-            "exam":mapping(columns="exam rem",pd_columns=pd_columns),
-            "gross":mapping(columns="gross salary",pd_columns=pd_columns),
-            "prof":mapping(columns="prof tax",pd_columns=pd_columns),
-            "tds":mapping(columns="tds",pd_columns=pd_columns),
-            "lic":mapping(columns="lic",pd_columns=pd_columns),
-            "staff_loan":mapping(columns="loan staff bank",pd_columns=pd_columns),
-            "diwali":mapping(columns="diwali festival advance",pd_columns=pd_columns),
-            "advance_staff":mapping(columns="advance to employees",pd_columns=pd_columns),
-            "med":mapping(columns="medical policy",pd_columns=pd_columns),
-            "kjsieit":mapping(columns="kjsieit co-op credit society",pd_columns=pd_columns),
-            "union":mapping(columns="union fees",pd_columns=pd_columns),
-            "other_ded":mapping(columns="other deducation deduction",pd_columns=pd_columns),
-            "total_ded":mapping(columns="total deduction",pd_columns=pd_columns),
-            "net_salary":mapping(columns="net salary",pd_columns=pd_columns),
-            "pf":mapping(columns="pf no",pd_columns=pd_columns),
-            "aadhar":mapping(columns="aadhar card",pd_columns=pd_columns),
-            "pan":mapping(columns="pan card",pd_columns=pd_columns),
-            "doj":mapping(columns="doj",pd_columns=pd_columns),
-            "design":mapping(columns="degnation designation",pd_columns=pd_columns),
-            "name":mapping(columns="name of staff",pd_columns=pd_columns),
-            "hr_emp":mapping(columns="hr emp code",pd_columns=pd_columns),
-            "present":mapping(columns="present days",pd_columns=pd_columns),
-            "una":mapping(columns="pf una no",pd_columns=pd_columns),
-            "dept":mapping(columns="department dept",pd_columns=pd_columns),
-            "a/c":mapping(columns="salary a c no",pd_columns=pd_columns),
-            "scale":mapping(columns="scale",pd_columns=pd_columns),
-            "personal":mapping(columns="personal loan staff from bank",pd_columns=pd_columns),
-            "agp/gp":mapping(columns="agp gp",pd_columns=pd_columns),
-            "other":mapping(columns="other exam rem",pd_columns=pd_columns),
-            "pf_amount":mapping(columns="pf rs",pd_columns=pd_columns)
-            }
-    
-# Optimized Gemini Code
-# import pandas as pd
-# from fuzzywuzzy import fuzz
-# def check_column_efficient(col: str, pd_columns: list[str], pd_data: pd.DataFrame) -> str:
-#     col_lower = col.lower() 
-#     filtered_cols = [c for c in pd_columns if any(w in c.lower() for w in col_lower.split())]
-#     if filtered_cols:
-#         distances = {c: fuzz.ratio(col_lower, c.lower()) for c in filtered_cols}
-#         best_match = max(distances, key=distances.get)
-#         return pd_data[best_match].values[0]
-#     else:
-#         return 'None'
-# er = Logger('C://Users//RAJ//Desktop//PDF//Excel-to-Pdf-Generator//main//')
-# asd = Database(er).connectDatabase('localhost','root','1234','somaiya_salary')
-# print(asd.showTables())
-# data = asd.fetchAll('jan','2024','somaiya','teaching')
-# print(data.columns)
-# pan = PandaGenerator(data,'hr_emp_code')
-# print(pan['220017'])
-# for i,j in data.iterrows():
-#     print(j.to_numpy())
-    
-# print(pan.dict_iter())
-# print(pan.data[data.columns[0]])

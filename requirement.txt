@@ -10,6 +10,8 @@ Requirements:
     pip install msoffcrypto-tool==5.4.2
     pip install weasyprint==61.2
     pip install pydyf==0.10.0
+    pip install pillow==11.1.0
+    pip install pyinstaller==6.12.0
 
 add wthmltopdf to path:
     add it to path environment variable
