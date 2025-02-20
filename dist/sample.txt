@@ -1,2 +1,0 @@
-Data String: asd
-Send to: asd

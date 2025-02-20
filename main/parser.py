@@ -17,12 +17,12 @@ class PDFTemplate:
 		self.log = log
 
 	def load_default(self) -> 'PDFTemplate':
-		status, msg = self.make_file(os.path.join(self.json_path,'index.json'),json.dumps(DEFAULT_JSON))
+		status, msg = self.make_file(os.path.join(self.json_path,'somaiya.json'),json.dumps(DEFAULT_JSON))
 		
 		if(status):
 			self.log.write_info(msg)
 
-		status, msg = self.make_file(os.path.join(self.html_path,'index.html'),DEFAULT_HTML)
+		status, msg = self.make_file(os.path.join(self.html_path,'somaiya.html'),DEFAULT_HTML)
 
 		if(status):
 			self.log.write_info(msg)
