@@ -138,7 +138,7 @@ class AsyncMailing:
         return self
     
         
-    async def sendMail(self, toAddr: str, msg:MIMEMultipart) -> 'AsyncMailing':
+    async def sendMail(self, toAddr: str, msg:MIMEMultipart) -> bool:
         """ Sends email asynchronously """
         if self.status:
             try:
@@ -148,18 +148,14 @@ class AsyncMailing:
             except Exception as e:
                 self.add_smtp_error(self.error.get_error_info(e))
                 self.status = False
+                
         return self.status
 
-    def resetMIME(self) -> 'AsyncMailing':
-        """ Resets MIME for the next email """
-        self.msg = MIMEMultipart()
-        return self
-
     def add_smtp_error(self, msg: str) -> None:
-        self.error.write_error(msg, "SMTP")
+        self.error.write_error(msg, "ASYNC-SMTP")
 
     def add_smtp_info(self, msg: str) -> None:
-        self.error.write_info(msg, "SMTP")
+        self.error.write_info(msg, "ASYNC-SMTP")
 
 
 class AsyncMessage:
