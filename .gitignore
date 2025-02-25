@@ -17,3 +17,5 @@ main/__pycache__
 pdfs
 main/html
 main/json
+sample.*
+creds.py
