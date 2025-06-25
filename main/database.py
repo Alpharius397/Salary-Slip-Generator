@@ -245,7 +245,7 @@ def sanitize_value(txt:str) -> str:
 
 # refines columns for sql in place
 def dataRefine(data:pd.DataFrame) -> None:
-    rename = lambda x: x.strip().replace(':',"_").replace("'","").replace('"','').replace('[','_').replace(']','_').replace('{','_').replace('}','_').replace('(','_').replace(')','_').replace('  ',' ').replace(' ','_').replace('-','').replace('.','').replace('\n','').replace('/','_or_').replace('%','_percent_').replace('&','_and_').replace(',','').replace(':','').replace('__','_').lower()
+    rename = lambda x: x.strip().replace('\n','')
 
     data.rename(columns={col:rename(str(col)) for col in data.columns},inplace=True)
 
