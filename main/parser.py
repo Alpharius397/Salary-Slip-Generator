@@ -2,7 +2,7 @@ import re
 import json
 from pathlib import Path
 import os
-from default import DEFAULT_HTML, DEFAULT_JSON
+from default import DEFAULT_HTML, DEFAULT_NON_TEACHING_JSON, DEFAULT_TEACHING_JSON
 from logger import Logger
 
 class PDFTemplate:
@@ -16,17 +16,16 @@ class PDFTemplate:
 		self.chosen_html:str = None
 		self.log = log
 
-	def load_default(self) -> 'PDFTemplate':
-		status, msg = self.make_file(os.path.join(self.json_path,'somaiya.json'),json.dumps(DEFAULT_JSON))
+	def _load_defaults(self, path: str,**kwargs: str):
+		for filename, data in kwargs.items():
+			status, msg = self.make_file(os.path.join(path, filename.replace("_",".")), data)
 		
-		if(status):
-			self.log.write_info(msg)
+			if(status):
+				self.log.write_info(msg)
 
-		status, msg = self.make_file(os.path.join(self.html_path,'somaiya.html'),DEFAULT_HTML)
-
-		if(status):
-			self.log.write_info(msg)
-   
+	def load_default(self) -> 'PDFTemplate':
+		self._load_defaults(path=self.json_path, teaching_json=json.dumps(DEFAULT_TEACHING_JSON), non_teaching_json = json.dumps(DEFAULT_NON_TEACHING_JSON))
+		self._load_defaults(path=self.html_path,teaching_html = DEFAULT_HTML)	
 		return self
 
 	def check_json(self) -> list[str]:

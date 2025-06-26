@@ -70,15 +70,14 @@ class Database():
 
     # updates existing data or inserts new data
     def updateData(self,data:pd.DataFrame,month:str,year:int,insti:str,type:str) -> int:
-        id = mapping(data.columns,'hr emp code')
+        id = mapping(data.columns,'HR EMP CODE')
         columns = {j:i for i,j in enumerate(data.columns)}
-
+        
         if (sorted(self.getColumns(month,year,insti,type))!=sorted(data.columns)):
             return -1
 
         
         if (not id) or (not self.status): 
-            print(" HR EMP CODE not found or MySQL connection failed ")
             return 0
             
         for _,row in data.iterrows():
@@ -201,7 +200,6 @@ class Database():
         
         if(not self.status): return pd.DataFrame({},columns=columns,dtype=str)
         
-        cursor = self.db.cursor()
         cursor = self.db.cursor(buffered=True)
 
         try:
@@ -214,6 +212,7 @@ class Database():
             return None
         
         columns = self.getColumns(month,year,insti,type)
+        print(columns)
         return pd.DataFrame(result,columns=columns,dtype=str)
     
     # end database. RIP
@@ -263,30 +262,21 @@ def cleanData(val:str|int|float) -> str:
 
 # tries to find columns based on the frequency of word in column
 def mapping(pd_columns:list[str],columns:str) -> str | None:
+    if(columns in pd_columns):
+        return columns
+    elif (columns.lower() in pd_columns):
+        return columns.lower()
+    elif (columns.upper() in pd_columns):
+        return columns.upper()
+    elif (columns.capitalize() in pd_columns):
+        return columns.capitalize()
+    else:
+        return None
 
-    check_columns = columns.lower().split(' ')
-
-    memo=defaultdict(lambda: {'count':0,'col':None})
-    to_check = [col for col in pd_columns if any(word in col.lower() for word in check_columns)]
-
-    for col in to_check:
-        asq = 0
-        for check in check_columns:
-            
-            if check in col.lower():
-                asq += 1
-                
-        if memo[columns]['count']<asq:
-            memo[columns]['col']=col
-            memo[columns]['count']=asq
-            
-    return memo[columns]['col'] 
-
-# checks for word and returns the value of column (that matches word) if present, else None
 def check_column(col:str,pd_columns:list[str],pd_Data:pd.DataFrame) -> str:
     pred_col = mapping(pd_columns,col)
 
     if pred_col is not None:
-        return pd_Data[pred_col].values[0]
+        return None if (not pd_Data[pred_col].values) else pd_Data[pred_col].values[0]
     else: 
         return None
