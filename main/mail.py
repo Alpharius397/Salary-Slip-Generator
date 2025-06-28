@@ -5,48 +5,54 @@ from email.mime.base import MIMEBase
 from email import encoders 
 from logger import Logger
 import aiosmtplib
+from type import *
+from pathlib import Path
 
-# a class for Mailing (supports method-chaining)
 class Mailing():
-    def __init__(self,email:str,key:str,error_log:Logger) -> None:
+    """ a class for Mailing (supports method-chaining) """
+
+    def __init__(self, email:str, key:str, error_log:Logger) -> None:
         self.email = email
         self.key = key
         self.error = error_log
         self.msg = MIMEMultipart()
         self.msg['From'] = email
+        self.smtp: Optional[smtplib.SMTP] = None
         self.status = True
-        self.smtp:smtplib.SMTP = None
     
-    #adds text-based messages to email
-    def addTxtMsg(self,msg:str,msgType:str) -> 'Mailing':
+    def addTxtMsg(self, msg:str, msgType:str) -> 'Mailing':
+        """ adds text-based messages to email """
         part = MIMEText(msg,f'{msgType}')
         
         try:
-            if self.status: self.msg.attach(part)
+            if self.status: 
+                self.msg.attach(part)
+                
         except Exception as e:
             self.add_smtp_error(self.error.get_error_info(e))
             self.status = False
         
         return self
     
-    # attach items to email
-    def addAttach(self,file:str,filename:str) -> 'Mailing':
+    def addAttach(self, file:Path, filename:str) -> 'Mailing':
+        """ attach items to email """
         try:
             if self.status:
-                with open(file, "rb") as attachment:
+                with open(file.resolve(), "rb") as attachment:
                     p = MIMEBase('application/pdf', 'octet-stream') 
                     p.set_payload((attachment).read()) 
                     encoders.encode_base64(p) 
                     p.add_header(f'Content-Disposition', f"attachment; filename={filename}") 
                     self.msg.attach(p)
+                    
         except Exception as e:
             self.add_smtp_error(self.error.get_error_info(e))
             self.status = False
         
         return self
     
-    # add subject to email
-    def addDetails(self,subject:str) -> 'Mailing':
+    def addDetails(self, subject:str) -> 'Mailing':
+        """ add subject to email """
         try: 
             if self.status: self.msg['Subject'] = subject
         except Exception as e:
@@ -55,8 +61,9 @@ class Mailing():
         
         return self
     
-    # attempts smtp login
     def login(self) -> 'Mailing':
+        """ attempts smtp login """
+        
         try:
             if self.status: 
                 self.smtp = smtplib.SMTP('smtp.gmail.com', 587)
@@ -70,10 +77,10 @@ class Mailing():
         
         return self
     
-    # sends mail
-    def sendMail(self,toAddr:str) -> 'Mailing':
+    def sendMail(self, toAddr:str) -> 'Mailing':
+        """ sends mail """
         try:
-            if self.status:
+            if self.status and self.smtp:
                 self.smtp.sendmail(self.email,toAddr,self.msg.as_string())
                 self.add_smtp_info(f'Email to ({toAddr}) was send successfully')
         except Exception as e:
@@ -82,16 +89,18 @@ class Mailing():
         
         return self
     
-    # resets MIMEMultipart()
     def resetMIME(self) -> 'Mailing':
+        """ resets MIMEMultipart() """
         self.msg = MIMEMultipart()
         return self
         
-    # quits current smtp
     def destroy(self) -> 'Mailing':
+        """ quits current smtp """
         try:
-            self.smtp.quit() 
-            self.add_smtp_info('Logout Successful')
+            if self.smtp:
+                self.smtp.quit() 
+                self.add_smtp_info('Logout Successful')
+                
         except Exception as e:
             self.add_smtp_error(self.error.get_error_info(e))
             self.status=False
@@ -105,25 +114,28 @@ class Mailing():
         self.error.write_info(msg,'SMTP')
 
 
-# a class for AsyncMailing (supports method-chaining)import aiosmtplib
 class AsyncMailing:
+    """ a class for AsyncMailing (supports method-chaining) """
     def __init__(self, email: str, key: str, error_log: Logger) -> None:
         self.email = email
         self.key = key
         self.error = error_log
         self.status = True
-        self.smtp: aiosmtplib.SMTP = None
+        self.smtp: Optional[aiosmtplib.SMTP] = None
 
     async def login(self) -> 'AsyncMailing':
         """ Asynchronous SMTP login with persistent connection """
+        
         try:
             self.smtp = aiosmtplib.SMTP(hostname="smtp.gmail.com",port=587)
             await self.smtp.connect()
             await self.smtp.login(self.email, self.key)
             self.add_smtp_info("Login Successful")
+            
         except Exception as e:
             self.add_smtp_error(self.error.get_error_info(e))
             self.status = False
+            
         return self
 
     async def destroy(self) -> 'AsyncMailing':
@@ -140,7 +152,7 @@ class AsyncMailing:
         
     async def sendMail(self, toAddr: str, msg:MIMEMultipart) -> bool:
         """ Sends email asynchronously """
-        if self.status:
+        if self.status and self.smtp:
             try:
                 msg["From"] = self.email
                 await self.smtp.sendmail(self.email, toAddr, msg.as_string())
@@ -175,11 +187,11 @@ class AsyncMessage:
                 self.status = False
         return self
 
-    def addAttach(self, file: str, filename: str) -> 'AsyncMessage':
+    def addAttach(self, file: Path, filename: str) -> 'AsyncMessage':
         """ Attaches files to email """
         if self.status:
             try:
-                with open(file, "rb") as attachment:
+                with open(file.resolve(), "rb") as attachment:
                     part = MIMEBase("application", "octet-stream")
                     part.set_payload(attachment.read())
                     encoders.encode_base64(part)
@@ -201,10 +213,7 @@ class AsyncMessage:
         return self
     
     def get_MIME(self) -> MIMEMultipart:
-        if(self.status):
-            return self.msg
-        else:
-            return None
+        return self.msg
     
     def add_mime_error(self, msg: str) -> None:
         self.error.write_error(msg, "MIME")

@@ -1,53 +1,81 @@
 import re
-import json
+from json import loads, dumps
 from pathlib import Path
 import os
+from type import *
 from default import DEFAULT_HTML, DEFAULT_NON_TEACHING_JSON, DEFAULT_TEACHING_JSON
 from logger import Logger
 
+
 class PDFTemplate:
-	VAR_NAME:str = r'[a-zA-Z0-9._+-/%]+'
-	TEMPLATE:str = r'{{[a-zA-Z0-9._+-/%]+}}'
+	TEMPLATE: str = r'{{([a-zA-Z0-9._+-/%]+)}}'
     
-	def __init__(self,dir_path:Path,log:Logger) -> None:
-		self.json_path = os.path.join(dir_path,'json')
-		self.html_path = os.path.join(dir_path,'html')
-		self.chosen_json:str = None
-		self.chosen_html:str = None
+	def __init__(self, dir_path: Path, log: Logger) -> None:
+		self.json_path =  Path(dir_path, "json")
+		self.html_path = Path(dir_path, "html")
+		self.chosen_json: Path = None
+		self.chosen_html: Path = None
 		self.log = log
 
-	def _load_defaults(self, path: str,**kwargs: str):
+	def _load_defaults(self, path: Path, fileType: Literal['json', 'html'], **kwargs: str) -> None:
 		for filename, data in kwargs.items():
-			status, msg = self.make_file(os.path.join(path, filename.replace("_",".")), data)
+			status, msg = self.make_file(Path(path, f'{filename.replace("_",".").strip(" .")}.{fileType}'), data)
 		
 			if(status):
 				self.log.write_info(msg)
+			else:
+				self.log.write_error(msg)
 
 	def load_default(self) -> 'PDFTemplate':
-		self._load_defaults(path=self.json_path, teaching_json=json.dumps(DEFAULT_TEACHING_JSON), non_teaching_json = json.dumps(DEFAULT_NON_TEACHING_JSON))
-		self._load_defaults(path=self.html_path,teaching_html = DEFAULT_HTML)	
+		self._load_defaults(
+			path = self.json_path, 
+			fileType = 'json', 
+			teaching = dumps(DEFAULT_TEACHING_JSON), 
+			non_teaching = dumps(DEFAULT_NON_TEACHING_JSON)
+		)
+	
+		self._load_defaults(
+			path=self.html_path,
+			fileType='html',
+			teaching = DEFAULT_HTML
+		)	
+
 		return self
 
 	def check_json(self) -> list[str]:
-		return [i for i in os.listdir(self.json_path) if i[-4:]=="json"]
+		try:
+			return [i.name for i in self.json_path.iterdir() if i.suffix ==".json"]
+		except Exception as e:
+			self.log.write_error(self.log.get_error_info(e))
+		return []
 
 	def check_html(self) -> list[str]:
-		return [i for i in os.listdir(self.html_path) if i[-4:]=="html"]
+		try:
+			return [i.name for i in self.html_path.iterdir() if i.suffix == ".html"]
+		except Exception as e:
+			self.log.write_error(self.log.get_error_info(e))
+		return []
 
-	def make_file(self, file_name, default:str = '') -> tuple[bool,str]:
+
+	def make_file(self, file_name: Path, default: Optional[str] = None) -> tuple[bool,str]:
 		status = False
 		msg = f"File Created: {file_name}"
         
 		try:
-			os.makedirs(os.path.dirname(file_name))
+			if(( path := str(file_name.parent) ) in [str(self.html_path), str(self.json_path)]):
+				os.makedirs(path)
+			else:
+				return status, f"File path must be within these paths only: {str(self.html_path)}, {str(self.json_path)}"
+	
 		except Exception as e:
 			self.log.write_error(self.log.get_error_info(e))
 		
 		try:
-			if(not os.path.exists(file_name)):
-				with open(file_name,'w') as f:
-					f.write(default)
-					status = True
+			if(not file_name.exists()):
+				file_name.touch()
+    
+				if(default is not None): file_name.write_text(default)
+				status = True
 	
 		except Exception as e:
 			status = False
@@ -55,69 +83,66 @@ class PDFTemplate:
     
 		return status, msg
 
-	def load_html(self, file_name:str) -> str | None:
-		return self.load_file(self.html_path,file_name)
+	def load_html(self, file_name:Path) -> tuple[str, dict[str, NullStr]]:
+		memo: dict[str, NullStr] = {}
+		new_html_file = ""
 
-	def load_json(self, file_name:str) -> dict:
 		try:
-			memo = json.loads(self.load_file(self.json_path,file_name))
-			return memo
+			if(not file_name.exists()):
+				return new_html_file, memo
+
+			with open(file_name.resolve(), "r") as file:
+
+				while (lines := file.readline()):
+					lines = lines.replace("%", f"%%")
+		
+					varIter = re.finditer(self.TEMPLATE, lines)
+			
+					for i in varIter:
+						try:
+							if(i and (curr := i.group(1))):
+								memo[curr] = None
+								lines = lines.replace(curr, f"%({curr})s")
+		
+						except Exception as e:
+							self.log.write_error(self.log.get_error_info(e))
+							
+
+					new_html_file += lines + '\n'
+		except Exception as e:
+			self.log.write_error(self.log.get_error_info(e))
+	
+		return new_html_file.strip(" \n"), memo
+	
+
+	def load_json(self, file_name:Path) -> dict:
+		try:
+			if( (text := self.load_file(self.json_path, file_name)) is not None):
+				memo = loads(text)
+				return memo
 
 		except Exception as e:
 			self.log.write_error(self.log.get_error_info(e))
 		
 		return {}
 
-	def load_file(self, dir_name:Path, file_name:Path) -> str:
-		_path = os.path.join(dir_name,file_name)
-		_file:str = None
+	def load_file(self, dir_name:Path, file_name:Path) -> NullStr:
+		path = Path(dir_name, file_name)
 
-		if(os.path.exists(_path)):
-			try:
-				with open(_path,'r') as f:
-					_file = f.read()
-				return _file
-
-			except Exception as e:
-				self.log.write_error(self.log.get_error_info(e))
-
+		try:
+			if(path.exists()):
+				return path.read_text()
+		except Exception as e:
+			self.log.write_error(self.log.get_error_info(e))
+    
 		return None
 
-	def _parse_html(self, html_file:str) -> tuple[str,dict[str,str]]:
-
-		html_file = html_file.replace('%',f"%%")
-		vars = re.findall(self.TEMPLATE,html_file)
-		memo = {}
-
-
-		for i in vars:
-			word = re.findall(self.VAR_NAME,i)
-
-			if(word):
-				curr = next(iter(word))
-				memo[curr] = None
-				html_file = html_file.replace(i,f"%({curr})s")
-
-		return html_file, memo
-
-	""" preprocess the keys to escape %"""
-	def render_html(self, html_file:str, memo:dict[str,str]) -> str:
-		html = self.load_html(html_file)
-
+	def render_html(self, html_file: Path, memo:dict[str,str]) -> str:
+		
+		""" preprocess the keys to escape % """
 		memo = {i.replace('%',f"%%"):j for i,j in memo.items()}
 
-		if(html is None):
-			self.log.write_error("Error Loading Html file!")
-			return None
-
-		html, vars = self._parse_html(html)
+		html, vars = self.load_html(html_file)
 		vars.update(memo)
-		print(vars)
+	
 		return html % vars
-
-# Log = Logger(os.path.dirname(__file__))
-# pdf = PDFTemplate(os.path.dirname(__file__),Log)
-# html = pdf.check_html()
-
-# with open('def.html','w') as f:
-#     f.write(pdf.render_html(html[0],{"hra%":13}))

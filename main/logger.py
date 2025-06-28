@@ -1,10 +1,10 @@
 import logging
-import os
+from pathlib import Path
 
 class Logger:
-    def __init__(self, dir_path:str) -> None:
+    def __init__(self, dir_path: Path) -> None:
         self.log = logging.getLogger(__name__)
-        file_path = os.path.join(dir_path,'app.log')
+        file_path = Path(dir_path,'app.log')
         console, file = logging.StreamHandler(), logging.FileHandler(file_path,mode="a",encoding="utf-8")
         formatter = logging.Formatter("[{asctime}]:[{levelname}]:{message}",style="{",datefmt="%d-%m-%Y %H:%M")
         console.setFormatter(formatter)
@@ -24,6 +24,3 @@ class Logger:
             return f"{exception.__class__.__module__}.{exception.__class__.__name__} : {exception}"
         else:
             return "Not an exception"
-        
-# asd = Logger(os.path.dirname(__file__))
-# asd.write_error('works')
