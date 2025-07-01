@@ -7,26 +7,25 @@ import re
 import numpy as np
 from logger import Logger
 from type import *
-from enum import Enum
 
 ERROR = "MySQL Connection Failed! Please try again"
 NO_ID = "HR Emp Code column was not found!"
 
-class CreateTable(Enum):
+class CreateTable:
     SUCCESS = "Table Generated Successfully"
     EXISTS = "Table Already Exists"
     COLUMNS_MISMATCH = "Table exists, but columns do not match to those in database"
     ERROR = ERROR
     NO_ID = NO_ID
-    
 
-class UpdateTable(Enum):
+
+class UpdateTable:
     ERROR = ERROR
     COLUMNS_MISMATCH = "Table exists, but columns do not match to those in database"
     SUCCESS = "Records were successfully inserted or updated!"
     NO_ID = NO_ID
 
-class DeleteTable(Enum):
+class DeleteTable:
     ERROR = ERROR
     SUCCESS = "Table was successfully deleted!"
     TABLE_NOT_FOUND = "Table does not exists!"
@@ -126,7 +125,7 @@ class Database():
 
         return True
     
-    def createData(self, month: MonthList, year:int, columns:list[str], insti: InstituteList, type: TypeList) -> CreateTable:
+    def createData(self, month: MonthList, year:int, columns:list[str], insti: InstituteList, type: TypeList) -> str:
         """ create a table from month and year if it does not exist """
         
         columns = sorted(columns)
@@ -162,20 +161,20 @@ class Database():
             if(sorted(self.getColumns(month,year,insti,type))!=sorted(columns)):
                 return CreateTable.COLUMNS_MISMATCH
             else:
-                return CreateTable.ERROR
+                return CreateTable.EXISTS
     
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))
             return CreateTable.ERROR
 
-    def updateData(self, data:pd.DataFrame, month: MonthList, year:int, insti: InstituteList, type: TypeList) -> UpdateTable:
+    def updateData(self, data:pd.DataFrame, month: MonthList, year:int, insti: InstituteList, type: TypeList) -> str:
         """ updates existing data or inserts new data """
         
         id = mapping(pd_columns=data.columns, columns='HR EMP CODE')
         
         columns = {j:i for i,j in enumerate(data.columns)}
         
-        if (self.column_check(month, year, data.columns, insti, type)):
+        if (not self.column_check(month, year, data.columns, insti, type)):
             return UpdateTable.COLUMNS_MISMATCH
         
         if (not id): 
@@ -191,9 +190,9 @@ class Database():
             
             with self.db.cursor() as cursor:
                 for row in data.itertuples(index=False):
-                    data = {col:cleanData(row[columns[col]]) for col in data.columns}
-                    query =','.join([f"{sanitize_column(col)}={sanitize_value(data[col])}" for col in data])
-                    values = ','.join(map(sanitize_value,list(data.values())))
+                    row_data = {col:cleanData(row[columns[col]]) for col in data.columns}
+                    query =','.join([f"{sanitize_column(col)}={sanitize_value(data[col])}" for col in row_data])
+                    values = ','.join(map(sanitize_value,list(row_data.values())))
 
                     try:
                         cursor.execute(f"INSERT INTO {table_name} ({keys}) VALUE ({values});")    
@@ -218,7 +217,7 @@ class Database():
         
         return UpdateTable.SUCCESS
     
-    def dropTable(self, month: MonthList, year:int, insti: InstituteList, type: TypeList) -> DeleteTable:
+    def dropTable(self, month: MonthList, year:int, insti: InstituteList, type: TypeList) -> str:
         """ Drops the table """
         
         if(self.db is None): return DeleteTable.ERROR
@@ -273,7 +272,7 @@ class Database():
                 memo[insti][type][year].add(month)
 
             else:
-                expected_format = "Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z"
+                expected_format = r"Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z"
                 self.add_mysql_error(f"Unexpected table name format: {table}. {expected_format}")
 
         return memo
@@ -304,11 +303,11 @@ class Database():
         table_name = self.getTableName(month, year, insti, type)
         
         try:
+            columns = self.getColumns(month,year,insti,type)
             with self.db.cursor() as cursor:
                 cursor.execute(f"SELECT * FROM {table_name}")
                 self.add_mysql_info(f"Fetching data from table {table_name}")
                 
-                columns = self.getColumns(month,year,insti,type)
                 result = cursor.fetchall()
             
                 return pd.DataFrame(result, columns=columns,dtype=str)
