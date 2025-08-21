@@ -1,5 +1,5 @@
 import types
-from typing import Literal, Optional, TypedDict, Iterator, Any, Union, Generator, Callable
+from typing import Literal, Optional, TypedDict, Iterator, Any, Union, Generator, Callable, Iterable
 
 class SMTP_CRED(TypedDict):
     email: str

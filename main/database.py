@@ -7,6 +7,7 @@ import re
 import numpy as np
 from logger import Logger
 from type import *
+from typing import Iterable
 
 ERROR = "MySQL Connection Failed! Please try again"
 NO_ID = "HR Emp Code column was not found!"
@@ -61,7 +62,7 @@ def cleanData(val:str|int|float) -> str:
     return str(val).replace('"',"'")
 
 
-def mapping(pd_columns:list[str], columns:str) -> str | None:
+def mapping(pd_columns: Iterable[str], columns:str) -> str | None:
     column = columns.lower()
     
     for i in sorted(pd_columns, key=len): 
@@ -114,7 +115,7 @@ class Database():
         
         return False
     
-    def column_check(self, month: MonthList, year:int, columns:list[str], insti: InstituteList, type: TypeList) -> bool:
+    def column_check(self, month: MonthList, year:int, columns: Iterable[str], insti: InstituteList, type: TypeList) -> bool:
         
         db_columns = set(self.getColumns(month, year, insti, type))
         seen: set[str] = set()
@@ -191,7 +192,7 @@ class Database():
             with self.db.cursor() as cursor:
                 for row in data.itertuples(index=False):
                     row_data = {col:cleanData(row[columns[col]]) for col in data.columns}
-                    query =','.join([f"{sanitize_column(col)}={sanitize_value(data[col])}" for col in row_data])
+                    query =','.join([f"{sanitize_column(col)}={sanitize_value(data[col])}" for col in row_data]) # type: ignore
                     values = ','.join(map(sanitize_value,list(row_data.values())))
 
                     try:
@@ -202,7 +203,7 @@ class Database():
                         self.add_mysql_error(self.logger.get_error_info(e))
                         
                         try:
-                            cursor.execute(f"UPDATE {table_name} SET {query} WHERE {sanitize_column(id)}={sanitize_value(data[id])};")
+                            cursor.execute(f"UPDATE {table_name} SET {query} WHERE {sanitize_column(id)}={sanitize_value(data[id])};") # type: ignore
                             self.add_mysql_info(f"Updating data into {table_name}")
                             
                         except Exception as f:
@@ -250,7 +251,7 @@ class Database():
         try:
             with self.db.cursor() as cursor:
                 cursor.execute('SHOW TABLES')
-                tables = [str(col[0]) for col in cursor.fetchall()]
+                tables = [str(col[0]) for col in cursor.fetchall()] # type: ignore
                 self.add_mysql_info(f'Fetching table(s) info')
             
         except Exception as e:
@@ -287,7 +288,7 @@ class Database():
             
                 cursor.execute(f'desc {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")}')
                 self.add_mysql_info(f'Checking table {sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")} info')
-                return [str(col_data[0]) for col_data in cursor.fetchall()]
+                return [str(col_data[0]) for col_data in cursor.fetchall()] # type: ignore
             
         except Exception as e:
             self.add_mysql_error(self.logger.get_error_info(e))    

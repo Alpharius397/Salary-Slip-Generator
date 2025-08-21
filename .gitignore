@@ -17,3 +17,5 @@ main/html
 main/json
 sample.*
 creds.py
+venv
+.*
