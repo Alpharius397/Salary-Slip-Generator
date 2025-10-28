@@ -1,7 +1,9 @@
+""" Logging Module """
 import logging
 from pathlib import Path
 
 class Logger:
+    """ Logger Instance """
     def __init__(self, dir_path: Path) -> None:
         self.log = logging.getLogger(__name__)
         file_path = Path(dir_path,'app.log')
@@ -14,13 +16,16 @@ class Logger:
         self.log.setLevel(logging.DEBUG)
                 
     def write_error(self, msg:str, where:str = 'APPLICATION') -> None:
+        """ Write Error """
         self.log.warning(msg=f"[{where}] {msg}",exc_info=True)
 
     def write_info(self, msg:str, where:str = 'APPLICATION') -> None:
-        self.log.info(f"[{where}] {msg}")
-    
+        """ Write Info """
+        self.log.info(msg=f"[{where}] {msg}")
+
     def get_error_info(self, exception:Exception) -> str:
-        if(isinstance(exception,Exception)):
+        """ Get formatted error """
+        if(isinstance(exception,Exception)): 
             return f"{exception.__class__.__module__}.{exception.__class__.__name__} : {exception}"
-        else:
-            return "Not an exception"
+
+        return "Not an exception"

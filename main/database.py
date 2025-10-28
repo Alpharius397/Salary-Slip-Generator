@@ -1,15 +1,17 @@
+import re
+import pandas as pd  # type: ignore
 import mysql  # type: ignore
 import mysql.connector  # type: ignore
 import mysql.connector.abstracts  # type: ignore
-import pandas as pd  # type: ignore
-import re
 import numpy as np
 from logger import Logger
-from type import Iterable, NullStr, TypeList, Optional, InstituteList, MonthList
+from typing import Iterable, Optional 
+from dataType import NullStr, TypeList, InstituteList, MonthList
+from enum import Enum
+
 
 ERROR = "MySQL Connection Failed! Please try again"
 NO_ID = "HR Emp Code column was not found!"
-
 
 class CreateTable:
     SUCCESS = "Table Generated Successfully"
@@ -335,9 +337,8 @@ class Database:
                 memo[insti][type][year].add(month)
 
             else:
-                expected_format = r"Expected table name format as '^(somaiya|svv)_(teaching|nonteaching|temporary|svv)_(jan|feb|mar|apr|may|jun|jul|aug|sept|oct|nov|dec)_(\d{4})\Z"
                 self.add_mysql_error(
-                    f"Unexpected table name format: {table}. {expected_format}"
+                    f"Unexpected table name format: {table}. {TABLE_FORMAT}"
                 )
 
         return memo

@@ -6,16 +6,16 @@ import os
 import re
 import sys
 import tkinter as tk  # type: ignore
-import tkinter.messagebox as tkmb
 import traceback  # type: ignore
 from asyncio import gather, run, to_thread
 from copy import deepcopy
 from multiprocessing import Process, Queue, freeze_support
-from parser import PDFTemplate
+from typing import Any, Callable, Optional, Union, Iterator
+import types
 from pathlib import Path
+from parser import PDFTemplate
 from threading import Thread, excepthook
-from tkinter import Scrollbar, filedialog, messagebox, scrolledtext
-
+from tkinter import Scrollbar, filedialog, scrolledtext, messagebox
 import customtkinter as ctk  # type: ignore
 import msoffcrypto
 import pandas as pd  # type: ignore
@@ -35,19 +35,7 @@ from database import (
 from default import SVG_ICON, TEMPLATE
 from logger import Logger
 from mail import AsyncMailing, AsyncMessage, Mailing, MIMEMultipart
-from type import (
-    Any,
-    Callable,
-    Optional,
-    Union,
-    MonthList,
-    InstituteList,
-    DB_CRED,
-    NullStr,
-    Iterator,
-    types,
-    TypeList,
-)
+from dataType import MonthList, InstituteList, DB_CRED, NullStr, TypeList
 
 IS_EXE = True
 """ when building .exe set to true """
@@ -81,25 +69,22 @@ TYPE = type
 
 def email_check(x: str):
     """a helper function for email validation"""
-    if re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\Z", x):
-        return True
-    else:
-        return False
+    return re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\Z", x) is not None
 
 
 def year_check(x: str):
     """a helper function for year validation"""
-    if re.match(r"^(\d){4}\Z", x):
-        return True
-    else:
-        return False
+    return re.match(r"^(\d){4}\Z", x) is not None
 
 
 def text_clean(x: str):
-    return str(x).replace("\n", "").strip()
+    """a helper function for text validation"""
+    return str(x).replace("\n", " ").strip()
 
 
 def file_clean(x: str):
+    """a helper function for file path validation"""
+
     def _clean(string: str, not_allowed: str) -> str:
         deny = set(not_allowed)
         new_string: str = ""
@@ -139,10 +124,10 @@ ctk.set_appearance_mode("light")
 class BaseTemplate:
     """Base Template for all tkinter frames"""
 
-    process: Process | None = None
+    process: Optional[Process] = None
     """ All frames will have 1 common process to run big task """
 
-    thread: Thread | None = None
+    thread: Optional[Thread] = None
     """ All frames gets 1 common thread to process gui changes """
 
     QUEUE: Queue = Queue()
@@ -151,7 +136,7 @@ class BaseTemplate:
     stop_flag: bool = False
     """ A stop flag for thread to stop """
 
-    data: pd.DataFrame | dict[str, pd.DataFrame] | None = None
+    data: Optional[pd.DataFrame | dict[str, pd.DataFrame]] = None
     """ A shared data storage """
 
     def __init__(self, outer: "App") -> None:
@@ -218,7 +203,7 @@ class BaseTemplate:
             if "quit" in attr:
                 continue
 
-            widget = self.__getattribute__(attr)
+            widget = getattr(self, attr)
 
             if (
                 isinstance(widget, ctk.CTkButton)
@@ -240,9 +225,10 @@ class BaseTemplate:
         erased = gc.collect()
         ERROR_LOG.write_info(f"{erased} Variables Cleared")
 
-    def switch_screen(self, app: type["BaseTemplate"]):
+    def switch_screen(self, current: type["BaseTemplate"]):
+        """Switch to another screen"""
         self.hide()
-        self.outer.CHILD[app.__name__].appear()  # type: ignore
+        self.outer.CHILD[current.__name__].appear()  # type: ignore
 
 
 class App:
@@ -361,7 +347,7 @@ class App:
         ).pack(pady=5, padx=10)
         ctk.CTkLabel(
             master=self.credit_frame,
-            text="First developed by: Raj More, Pranav Lohar, Aryan Mandke.",
+            text="First developed by: Raj More, Pranav Lohar, Aryan Mandke",
             text_color=COLOR_SCHEME["text_color"],
             font=("Ubuntu", 16, "bold"),
             width=250,
@@ -496,8 +482,10 @@ class GUI_Handler:
 
     @staticmethod
     def lock_gui_button(
-        buttons: Iterator[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
-        | list[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu],
+        buttons: (
+            Iterator[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
+            | list[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
+        ),
     ) -> None:
         """Disable buttons"""
         for button in buttons:
@@ -505,8 +493,10 @@ class GUI_Handler:
 
     @staticmethod
     def unlock_gui_button(
-        buttons: Iterator[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
-        | list[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu],
+        buttons: (
+            Iterator[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
+            | list[ctk.CTkButton | ctk.CTkEntry | ctk.CTkOptionMenu]
+        ),
     ) -> None:
         """Enable buttons"""
         for button in buttons:
@@ -963,9 +953,11 @@ class PandaWrapper:
 
         for data in self.servitor.itertuples(index=False):
             emp_data = {
-                key: val or "-"
-                if (val not in set(self.columns.keys()))
-                else text_clean(data[self.columns[val]])
+                key: (
+                    val or "-"
+                    if (val not in set(self.columns.keys()))
+                    else text_clean(data[self.columns[val]])
+                )
                 for key, val in self.column_auspex.items()
             }
             emp_data.update({"month": month.capitalize(), "year": str(year)})
@@ -996,9 +988,11 @@ class PandaWrapper:
         if not search_result.empty:
             data = search_result.iloc[0].to_numpy()
             emp_data = {
-                key: val or "-"
-                if (val not in set(self.columns.keys()))
-                else text_clean(data[self.columns[val]])
+                key: (
+                    val or "-"
+                    if (val not in set(self.columns.keys()))
+                    else text_clean(data[self.columns[val]])
+                )
                 for key, val in self.column_auspex.items()
             }
             emp_data.update({"month": month.capitalize(), "year": str(year)})
@@ -1051,7 +1045,7 @@ class TemplateGenerator:
 
             sheetData = data.get(sheet, pd.DataFrame())
 
-            if not all([(i in sheetData.columns) for i in TEMPLATE_COLUMN]):
+            if not all((i in sheetData.columns) for i in TEMPLATE_COLUMN):
                 continue
 
             _name, _title = TEMPLATE_COLUMN
@@ -1092,7 +1086,7 @@ class TemplateGenerator:
 
         for sheet in TEMPLATE_SHEET:
             sheetData = data.get(sheet, pd.DataFrame())
-            if not all([(i in sheetData.columns) for i in TEMPLATE_COLUMN]):
+            if not all((i in sheetData.columns) for i in TEMPLATE_COLUMN):
                 continue
 
             _name, _title = TEMPLATE_COLUMN
@@ -1368,7 +1362,7 @@ class SendMail(BaseTemplate):
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
-        tkmb.showinfo("Email Status", "Email Sending Stopped")
+        messagebox.showinfo("Email Status", "Email Sending Stopped")
 
     def send_mail_thread_wrapper(self) -> None:
         """Handles gui during mailing process"""
@@ -1386,9 +1380,9 @@ class SendMail(BaseTemplate):
                 break
 
         if done:
-            tkmb.showinfo("Email Status", "Email Send Successfully")
+            messagebox.showinfo("Email Status", "Email Send Successfully")
         else:
-            tkmb.showinfo("Email Status", "Email was not send successfully")
+            messagebox.showinfo("Email Status", "Email was not send successfully")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -1408,26 +1402,26 @@ class SendMail(BaseTemplate):
         id = text_clean(self.emp_id.get())
 
         if not year_check(year):
-            tkmb.showwarning("Year Check", "Improper Year format")
+            messagebox.showwarning("Year Check", "Improper Year format")
             return
 
         if not email_check(toAddr):
-            tkmb.showwarning("Email Check", "Improper Email Address format")
+            messagebox.showwarning("Email Check", "Improper Email Address format")
             return
 
         if not (re.match(r"^(\w+|\d+)\Z", id)):
-            tkmb.showwarning("Employee ID check", "Improper Employee ID format")
+            messagebox.showwarning("Employee ID check", "Improper Employee ID format")
             return
 
         if not os.path.isfile(file_path):
-            tkmb.showwarning("File Check", "Selected path is not a file")
+            messagebox.showwarning("File Check", "Selected path is not a file")
             return
 
         if self.can_start_thread():
             self.process = Process(
                 target=MailingWrapper().change_state(month, year).attempt_mail_process,
                 kwargs={
-                    "pdf_path": file_path,
+                    "pdf_path": Path(file_path),
                     "toAddr": toAddr,
                     "id": id,
                     "queue": self.QUEUE,
@@ -1439,7 +1433,7 @@ class SendMail(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -1632,7 +1626,7 @@ class SendBulkMail(BaseTemplate):
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
-        tkmb.showinfo("Email Status", "Email Sending Stopped")
+        messagebox.showinfo("Email Status", "Email Sending Stopped")
         self.email_result(self.count, self.total)
 
     def send_mail_thread_wrapper(self) -> None:
@@ -1665,11 +1659,11 @@ class SendBulkMail(BaseTemplate):
         """Shows result after mailing is complete"""
 
         if (not self.stop_flag) and self.count > 0:
-            tkmb.showinfo(
+            messagebox.showinfo(
                 "Email Status", f"{count}/{total} emails were send successfully"
             )
         elif (not self.stop_flag) and self.total > 0:
-            tkmb.showinfo("Email Status", "No emails were send")
+            messagebox.showinfo("Email Status", "No emails were send")
 
     def send_mail(self) -> None:
         """See name"""
@@ -1680,7 +1674,7 @@ class SendBulkMail(BaseTemplate):
         type = self.chosen_type.get()
 
         if BaseTemplate.data is None:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "Data Status",
                 f"Data for {institute.capitalize()} {type.capitalize()} {month.capitalize()}/{year} was not found. Please do the necessary",
             )
@@ -1696,21 +1690,21 @@ class SendBulkMail(BaseTemplate):
                 break
 
         if code_col is None or email_col is None:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "Column Missing", "HR EMP CODE or Mail Column was not found"
             )
             return
 
         if not year_check(year):
-            tkmb.showwarning("Year Check", "Improper Year format")
+            messagebox.showwarning("Year Check", "Improper Year format")
             return
 
         if not file_path:
-            tkmb.showwarning("File Path Check", "File Path is empty")
+            messagebox.showwarning("File Path Check", "File Path is empty")
             return
 
         if not os.path.isdir(file_path):
-            tkmb.showwarning("File Check", "Selected path is not a directory")
+            messagebox.showwarning("File Check", "Selected path is not a directory")
             return
 
         if self.can_start_thread():
@@ -1720,7 +1714,7 @@ class SendBulkMail(BaseTemplate):
                     "data": BaseTemplate.data,
                     "code_column": code_col,
                     "email_col": email_col,
-                    "dir_path": file_path,
+                    "dir_path": Path(file_path),
                     "queue": self.QUEUE,
                 },
                 daemon=True,
@@ -1731,7 +1725,7 @@ class SendBulkMail(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -1760,13 +1754,13 @@ class SendBulkMail(BaseTemplate):
 
         if data is not None:
             GUI_Handler.place_after(self.exists_table, self.mail_button)
-            tkmb.showinfo(
+            messagebox.showinfo(
                 "Database Status",
                 f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} exists in database. Mass Mailing available",
             )
             BaseTemplate.data = data
         else:
-            tkmb.showinfo(
+            messagebox.showinfo(
                 "Database Status",
                 f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} doesn't exist in database. Please upload data to database",
             )
@@ -1777,7 +1771,7 @@ class SendBulkMail(BaseTemplate):
     def table_exists_cancel_thread(self):
         self.cancel_thread()
 
-        tkmb.showinfo("Database Status", "Process Halted")
+        messagebox.showinfo("Database Status", "Process Halted")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -1787,7 +1781,7 @@ class SendBulkMail(BaseTemplate):
         year = self.entry_year.get()
 
         if not year_check(year):
-            tkmb.showwarning("Year Check", "Improper Year format")
+            messagebox.showwarning("Year Check", "Improper Year format")
             return
 
         if self.can_start_thread():
@@ -1808,7 +1802,7 @@ class SendBulkMail(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -1893,17 +1887,17 @@ class Login(BaseTemplate):
         password = self.user_password.get() if not IS_DEBUG else known_pass
 
         if not username or not password:
-            tkmb.showwarning(title="Empty Field", message="Please fill the all fields")
+            messagebox.showwarning(title="Empty Field", message="Please fill the all fields")
             return
 
         if known_user == username and known_pass == password:
-            tkmb.showinfo(
+            messagebox.showinfo(
                 title="Login Successful", message="You have logged in Successfully"
             )
             ERROR_LOG.write_info("User Logged in")
             self.switch_screen(MySQLLogin)
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 title="Wrong password", message="Please check your username/password"
             )
 
@@ -2035,13 +2029,13 @@ class MySQLLogin(BaseTemplate):
         if host and user and password and database:
             if self.outer.DB.connectDatabase(**self.outer.CRED).isConnected():
                 self.outer.DB.endDatabase()
-                tkmb.showinfo("MySQL Status", "MySQL Connection Established")
+                messagebox.showinfo("MySQL Status", "MySQL Connection Established")
                 self.switch_screen(Interface)
             else:
-                tkmb.showinfo("MySQL Status", "MySQL Connection Failed")
+                messagebox.showinfo("MySQL Status", "MySQL Connection Failed")
 
         else:
-            tkmb.showwarning(title="Empty Field", message="Please fill the all fields")
+            messagebox.showwarning(title="Empty Field", message="Please fill the all fields")
 
 
 class Interface(BaseTemplate):
@@ -2166,7 +2160,7 @@ class Interface(BaseTemplate):
             self.outer.CHILD[DataPreview.__name__].changeData()  # type: ignore
             self.switch_screen(DataPreview)
         else:
-            tkmb.showerror("MySQL Error", "No data available to preview")
+            messagebox.showerror("MySQL Error", "No data available to preview")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2176,7 +2170,7 @@ class Interface(BaseTemplate):
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
-        tkmb.showinfo("Fetch Status", "Data Fetching Stopped")
+        messagebox.showinfo("Fetch Status", "Data Fetching Stopped")
 
     # proceeds to pre-existing data page
     def preview(self) -> None:
@@ -2192,7 +2186,7 @@ class Interface(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -2215,7 +2209,7 @@ class Interface(BaseTemplate):
             self.outer.CHILD[DataPeek.__name__].changeData()  # type: ignore
             self.switch_screen(DataPeek)
         else:
-            tkmb.showerror("MySQL Error", "No data available to delete")
+            messagebox.showerror("MySQL Error", "No data available to delete")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2233,7 +2227,7 @@ class Interface(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -2475,18 +2469,18 @@ class DataPreview(BaseTemplate):
                     BaseTemplate.data = table
                     self.outer.CHILD[DataView.__name__].id_column = unique_col  # type: ignore
                     self.switch_screen(DataView)
-                    tkmb.showinfo("Fetch Status", "Data Fetched Successfully")
+                    messagebox.showinfo("Fetch Status", "Data Fetched Successfully")
                 else:
-                    tkmb.showinfo(
+                    messagebox.showinfo(
                         "Fetch Status", "Data does not have HR EMP Code Column in table"
                     )
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Fetch Status", "Template HTML/Mapping JSON files were not found!"
                 )
 
         else:
-            tkmb.showinfo("Fetch Status", "Data Does not exists")
+            messagebox.showinfo("Fetch Status", "Data Does not exists")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2496,7 +2490,7 @@ class DataPreview(BaseTemplate):
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
-        tkmb.showinfo("Fetch Status", "Data Fetching Stopped")
+        messagebox.showinfo("Fetch Status", "Data Fetching Stopped")
 
     # fetches data from the chosen table
     def getData(self) -> None:
@@ -2528,7 +2522,7 @@ class DataPreview(BaseTemplate):
             self.thread.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Processing Error",
                 "Cannot fetch data from Database now. Please try again",
             )
@@ -2770,7 +2764,7 @@ class DataView(BaseTemplate):
         GUI_Handler.place_after(self.clipboard, self.quit)
 
         if BaseTemplate.data is None:
-            tkmb.showwarning("Data Error", "Data was not found")
+            messagebox.showwarning("Data Error", "Data was not found")
             return
 
         search_result = BaseTemplate.data[
@@ -2781,9 +2775,9 @@ class DataView(BaseTemplate):
             pyperclip.copy(
                 ",".join(map(text_clean, search_result.iloc[[0]].to_numpy()))
             )
-            tkmb.showinfo("ClipBoard Status", "Employee data copied to clipboard.")
+            messagebox.showinfo("ClipBoard Status", "Employee data copied to clipboard.")
         else:
-            tkmb.showwarning("Error", "Employee ID was not found.")
+            messagebox.showwarning("Error", "Employee ID was not found.")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2801,11 +2795,11 @@ class DataView(BaseTemplate):
                 self.thread.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status", "Warning Background Thread is still running"
                 )
         else:
-            tkmb.showerror("Empty Data", "Empty Search String Detected")
+            messagebox.showerror("Empty Data", "Empty Search String Detected")
 
     def single_pdf_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -2827,11 +2821,11 @@ class DataView(BaseTemplate):
                 break
 
         if status and msg:
-            tkmb.showinfo("Single PDF Status", msg)
+            messagebox.showinfo("Single PDF Status", msg)
         elif msg:
-            tkmb.showwarning("Single PDF Status", msg)
+            messagebox.showwarning("Single PDF Status", msg)
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "Single PDF Status", "Something went wrong. Please try again"
             )
 
@@ -2843,7 +2837,7 @@ class DataView(BaseTemplate):
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
 
-        tkmb.showinfo("Process Status", "PDF Generation Cancelled")
+        messagebox.showinfo("Process Status", "PDF Generation Cancelled")
 
     # cover for extract_data
     def single_print_pdf_cover(self) -> None:
@@ -2854,11 +2848,11 @@ class DataView(BaseTemplate):
         html = self.html.get()
 
         if not emp_id:
-            tkmb.showerror("Empty Data", "Empty Search String Detected")
+            messagebox.showerror("Empty Data", "Empty Search String Detected")
             return
 
         if BaseTemplate.data is None:
-            tkmb.showerror("Data Error", "Data is Unavailable")
+            messagebox.showerror("Data Error", "Data is Unavailable")
             return
 
         file: NullStr = None
@@ -2877,7 +2871,7 @@ class DataView(BaseTemplate):
 
         except Exception as e:
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
-            tkmb.showwarning("Error", f"Some error has occurred: {e}")
+            messagebox.showwarning("Error", f"Some error has occurred: {e}")
             file = None
 
         if file:
@@ -2905,13 +2899,13 @@ class DataView(BaseTemplate):
                 self.thread.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Error", "File was not found")
+            messagebox.showerror("File Error", "File was not found")
 
     def bulk_print_pdfs_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -2933,11 +2927,11 @@ class DataView(BaseTemplate):
                 break
 
         if (not self.stop_flag) and total:
-            tkmb.showinfo(
+            messagebox.showinfo(
                 "Bulk PDF Status", f"Generated {done} PDFs out of {total} records"
             )
         elif not self.stop_flag:
-            tkmb.showwarning("Bulk PDF Status", "No PDFs were generated")
+            messagebox.showwarning("Bulk PDF Status", "No PDFs were generated")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2961,7 +2955,8 @@ class DataView(BaseTemplate):
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
 
         if where is None:
-            tkmb.showerror("Program Status", "File path was invalid")
+            messagebox.showerror("Program Status", "File path was invalid")
+            return
 
         if self.can_start_thread():
             PDF_TEMPLATE.chosen_html = Path(html)
@@ -2986,7 +2981,7 @@ class DataView(BaseTemplate):
             self.thread.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -3248,7 +3243,7 @@ class FileInput(BaseTemplate):
             self.thread = Thread(target=self._go_to_upload_thread, daemon=True)
             self.thread.start()
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Thread is still running"
             )
 
@@ -3309,13 +3304,13 @@ class FileInput(BaseTemplate):
                     self.process.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
 
             elif self.encryption:
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -3336,12 +3331,12 @@ class FileInput(BaseTemplate):
                     self.thread.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
         else:
-            tkmb.showerror("File Status", "Empty file path was detected")
+            messagebox.showerror("File Status", "Empty file path was detected")
 
     def decrease_size(self):
         self.font_size.configure(text=max(MIN_TEXT_SIZE, self.size - 1))
@@ -3411,12 +3406,12 @@ class FileInput(BaseTemplate):
                 self.set_after_file_is_encrypted_state()
                 GUI_Handler.changeCommand(self.upload_button, self.load_encrypted_file)
 
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encrypted Status",
                     f"Excel File '{self.file.get()}' is encrypted. Please provide the password",
                 )
         else:
-            tkmb.showerror("File Status", f"File '{self.file.get()}' was not found")
+            messagebox.showerror("File Status", f"File '{self.file.get()}' was not found")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -3440,13 +3435,13 @@ class FileInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_unprotected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -3471,9 +3466,9 @@ class FileInput(BaseTemplate):
             self.set_after_upload_state()
             GUI_Handler.view_excel(BaseTemplate.data[sheets[0]], self.text_excel)  # type: ignore
 
-            tkmb.showinfo("Upload Status", f"Excel File '{self.file.get()}' was loaded")
+            messagebox.showinfo("Upload Status", f"Excel File '{self.file.get()}' was loaded")
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "File Status", f"Excel File '{self.file.get()}' could not be loaded"
             )
 
@@ -3501,13 +3496,13 @@ class FileInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_protected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -3532,9 +3527,9 @@ class FileInput(BaseTemplate):
             GUI_Handler.view_excel(data[sheets[0]], self.text_excel)  # type: ignore
 
             self.prev_password = self.password_box.get()
-            tkmb.showinfo("Upload Status", f"Excel File '{self.file.get()}' was loaded")
+            messagebox.showinfo("Upload Status", f"Excel File '{self.file.get()}' was loaded")
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "File Status",
                 f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
             )
@@ -3548,7 +3543,7 @@ class FileInput(BaseTemplate):
 
         if file_path:
             if self.encryption and (not password):
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -3572,13 +3567,13 @@ class FileInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def change_view_thread(self):
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -3609,7 +3604,7 @@ class FileInput(BaseTemplate):
             GUI_Handler.view_excel(data[current_sheet], self.text_excel)
             self.prev_password = self.password_box.get()
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "File Status",
                 f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
             )
@@ -3626,12 +3621,12 @@ class FileInput(BaseTemplate):
                 self.thread = Thread(target=self.change_view_thread, daemon=True)
                 self.thread.start()
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status", "Warning Background Thread is still running"
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
 
 class UploadData(BaseTemplate):
@@ -3891,21 +3886,21 @@ class UploadData(BaseTemplate):
         if result is not None:
             match result:
                 case CreateTable.NO_ID:
-                    tkmb.showwarning("Column Info", CreateTable.NO_ID)
+                    messagebox.showwarning("Column Info", CreateTable.NO_ID)
                 case CreateTable.SUCCESS:
-                    tkmb.showinfo("Database Status", CreateTable.SUCCESS)
+                    messagebox.showinfo("Database Status", CreateTable.SUCCESS)
                 case CreateTable.COLUMNS_MISMATCH:
-                    tkmb.showinfo("Database Status", CreateTable.COLUMNS_MISMATCH)
+                    messagebox.showinfo("Database Status", CreateTable.COLUMNS_MISMATCH)
                 case CreateTable.ERROR:
-                    tkmb.showerror("Database Status", CreateTable.ERROR)
+                    messagebox.showerror("Database Status", CreateTable.ERROR)
                 case CreateTable.EXISTS:
-                    tkmb.showerror("Database Status", CreateTable.EXISTS)
+                    messagebox.showerror("Database Status", CreateTable.EXISTS)
 
             if result in {CreateTable.EXISTS, CreateTable.SUCCESS}:
                 GUI_Handler.place_after(self.create_button, self.update_button)
 
         else:
-            tkmb.showinfo("Database Status", "MySQL Error occurred")
+            messagebox.showinfo("Database Status", "MySQL Error occurred")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -3917,7 +3912,7 @@ class UploadData(BaseTemplate):
         year = self.entry_year.get()
 
         if self.sheet is None:
-            tkmb.showwarning("Excel Sheet", "Excel Sheet was not chosen")
+            messagebox.showwarning("Excel Sheet", "Excel Sheet was not chosen")
 
         if year_check(year):
             if self.can_start_thread() and messagebox.askyesnocancel(
@@ -3950,7 +3945,7 @@ class UploadData(BaseTemplate):
                 self.process.start()
 
         else:
-            tkmb.showwarning("Alert", "Incorrect year format")
+            messagebox.showwarning("Alert", "Incorrect year format")
 
     def update_thread(self):
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -3969,16 +3964,16 @@ class UploadData(BaseTemplate):
         if result is not None:
             match result:
                 case UpdateTable.COLUMNS_MISMATCH:
-                    tkmb.showwarning("Column Info", UpdateTable.COLUMNS_MISMATCH)
+                    messagebox.showwarning("Column Info", UpdateTable.COLUMNS_MISMATCH)
                 case UpdateTable.NO_ID:
-                    tkmb.showwarning("Column Info", UpdateTable.NO_ID)
+                    messagebox.showwarning("Column Info", UpdateTable.NO_ID)
                 case UpdateTable.ERROR:
-                    tkmb.showinfo("Database Status", UpdateTable.ERROR)
+                    messagebox.showinfo("Database Status", UpdateTable.ERROR)
                 case UpdateTable.SUCCESS:
-                    tkmb.showinfo("Database Status", UpdateTable.SUCCESS)
+                    messagebox.showinfo("Database Status", UpdateTable.SUCCESS)
 
         else:
-            tkmb.showinfo("Database Status", "MySQL Error occurred")
+            messagebox.showinfo("Database Status", "MySQL Error occurred")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4012,13 +4007,13 @@ class UploadData(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showwarning("Alert", "Incorrect year format")
+            messagebox.showwarning("Alert", "Incorrect year format")
 
     def delete_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -4036,11 +4031,11 @@ class UploadData(BaseTemplate):
 
         match result:
             case DeleteTable.ERROR:
-                tkmb.showwarning("Database Status", DeleteTable.ERROR)
+                messagebox.showwarning("Database Status", DeleteTable.ERROR)
             case DeleteTable.TABLE_NOT_FOUND:
-                tkmb.showwarning("Database Status", DeleteTable.TABLE_NOT_FOUND)
+                messagebox.showwarning("Database Status", DeleteTable.TABLE_NOT_FOUND)
             case DeleteTable.SUCCESS:
-                tkmb.showinfo("Database Status", DeleteTable.SUCCESS)
+                messagebox.showinfo("Database Status", DeleteTable.SUCCESS)
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4072,13 +4067,13 @@ class UploadData(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showwarning("Alert", "Incorrect year format")
+            messagebox.showwarning("Alert", "Incorrect year format")
 
 
 class DataPeek(BaseTemplate):
@@ -4284,7 +4279,7 @@ class DataPeek(BaseTemplate):
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
-        tkmb.showinfo("Fetch Status", "Data Fetching Stopped")
+        messagebox.showinfo("Fetch Status", "Data Fetching Stopped")
 
     # fetches data from the chosen table
     def go_to_delete(self) -> None:
@@ -4315,7 +4310,7 @@ class DataPeek(BaseTemplate):
             self.process.start()
 
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Process/Thread is still running"
             )
 
@@ -4340,7 +4335,7 @@ class DataPeek(BaseTemplate):
             self.tables = table
             self.changeData()
         else:
-            tkmb.showerror("MySQL Error", "No Data Available to delete")
+            messagebox.showerror("MySQL Error", "No Data Available to delete")
             self.hide()
             self.outer.CHILD[Interface.__name__].appear()
 
@@ -4418,7 +4413,7 @@ class DeleteView(BaseTemplate):
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
 
-        tkmb.showinfo("Process Status", "PDF Generation Cancelled")
+        messagebox.showinfo("Process Status", "PDF Generation Cancelled")
 
     def delete_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -4435,11 +4430,11 @@ class DeleteView(BaseTemplate):
                 break
 
         if result:
-            tkmb.showinfo("Database Status", "Table dropped successfully")
+            messagebox.showinfo("Database Status", "Table dropped successfully")
         elif result is not None:
-            tkmb.showinfo("Database Status", "Table does not exists")
+            messagebox.showinfo("Database Status", "Table does not exists")
         else:
-            tkmb.showinfo("Database Status", "MySQL Error occured")
+            messagebox.showinfo("Database Status", "MySQL Error occured")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4471,13 +4466,13 @@ class DeleteView(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showwarning("Alert", "Incorrect year format")
+            messagebox.showwarning("Alert", "Incorrect year format")
 
 
 class TemplateInput(BaseTemplate):
@@ -4749,11 +4744,11 @@ class TemplateInput(BaseTemplate):
         file_name = self.template.get()
 
         if not file_name:
-            tkmb.showerror("Template Generation", "File Name cannot be empty!")
+            messagebox.showerror("Template Generation", "File Name cannot be empty!")
             return
 
         if BaseTemplate.data is None:
-            tkmb.showerror("Template Generation", "Data is Unavailable")
+            messagebox.showerror("Template Generation", "Data is Unavailable")
             return
 
         if self.can_start_thread():
@@ -4772,7 +4767,7 @@ class TemplateInput(BaseTemplate):
             self.process.start()
             self.thread.start()
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Thread is still running"
             )
 
@@ -4796,12 +4791,12 @@ class TemplateInput(BaseTemplate):
 
                     if status is not None:
                         if status:
-                            tkmb.showinfo("Template Generation", msg)
+                            messagebox.showinfo("Template Generation", msg)
                         else:
-                            tkmb.showwarning("Template Generation", msg)
+                            messagebox.showwarning("Template Generation", msg)
 
                     else:
-                        tkmb.showinfo(
+                        messagebox.showinfo(
                             "Template Generation", "Template Generation Failed"
                         )
 
@@ -4863,13 +4858,13 @@ class TemplateInput(BaseTemplate):
                     self.process.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
 
             elif self.encryption:
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -4890,12 +4885,12 @@ class TemplateInput(BaseTemplate):
                     self.thread.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
         else:
-            tkmb.showerror("File Status", "Empty file path was detected")
+            messagebox.showerror("File Status", "Empty file path was detected")
 
     def decrease_size(self):
         self.font_size.configure(text=max(MIN_TEXT_SIZE, self.size - 1))
@@ -4966,12 +4961,12 @@ class TemplateInput(BaseTemplate):
                 self.set_after_file_is_encrypted_state()
                 GUI_Handler.changeCommand(self.upload_button, self.load_encrypted_file)
 
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encrypted Status",
                     f"Excel File '{self.file.get()}' is encrypted. Please provide the password",
                 )
         else:
-            tkmb.showerror("File Status", f"File '{self.file.get()}' was not found")
+            messagebox.showerror("File Status", f"File '{self.file.get()}' was not found")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4995,13 +4990,13 @@ class TemplateInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_unprotected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5023,7 +5018,7 @@ class TemplateInput(BaseTemplate):
 
             if (sheets) and (data is not None):
                 if not checkColumns(sheets, TEMPLATE_SHEET):
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following sheets: {', '.join(TEMPLATE_SHEET)}",
                     )
@@ -5035,7 +5030,7 @@ class TemplateInput(BaseTemplate):
                         for _data in data.values()
                     ]
                 ):  # type: ignore
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following columns in all sheets: {', '.join(TEMPLATE_COLUMN)}",
                     )
@@ -5046,11 +5041,11 @@ class TemplateInput(BaseTemplate):
                 self.set_after_upload_state()
                 GUI_Handler.view_excel(BaseTemplate.data[sheets[0]], self.text_excel)
 
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Upload Status", f"Excel File '{self.file.get()}' was loaded"
                 )
             else:
-                tkmb.showwarning(
+                messagebox.showwarning(
                     "File Status",
                     f"Excel File '{self.file.get()}' could not be loaded. Please ensure file",
                 )
@@ -5079,13 +5074,13 @@ class TemplateInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_protected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5106,7 +5101,7 @@ class TemplateInput(BaseTemplate):
 
             if (sheets) and (data is not None):
                 if not checkColumns(sheets, TEMPLATE_SHEET):
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following sheets: {', '.join(TEMPLATE_SHEET)}",
                     )
@@ -5118,7 +5113,7 @@ class TemplateInput(BaseTemplate):
                         for _data in data.values()
                     ]
                 ):  # type: ignore
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following columns in all sheets: {', '.join(TEMPLATE_COLUMN)}",
                     )
@@ -5130,11 +5125,11 @@ class TemplateInput(BaseTemplate):
                 GUI_Handler.view_excel(data[sheets[0]], self.text_excel)
 
                 self.prev_password = self.password_box.get()
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Upload Status", f"Excel File '{self.file.get()}' was loaded"
                 )
             else:
-                tkmb.showwarning(
+                messagebox.showwarning(
                     "File Status",
                     f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
                 )
@@ -5149,7 +5144,7 @@ class TemplateInput(BaseTemplate):
 
         if file_path:
             if self.encryption and (not password):
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -5173,13 +5168,13 @@ class TemplateInput(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def change_view_thread(self):
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5210,7 +5205,7 @@ class TemplateInput(BaseTemplate):
             GUI_Handler.view_excel(data[current_sheet], self.text_excel)
             self.prev_password = self.password_box.get()
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "File Status",
                 f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
             )
@@ -5227,12 +5222,12 @@ class TemplateInput(BaseTemplate):
                 self.thread = Thread(target=self.change_view_thread, daemon=True)
                 self.thread.start()
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status", "Warning Background Thread is still running"
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
 
 class TemplateGeneration(BaseTemplate):
@@ -5485,7 +5480,7 @@ class TemplateGeneration(BaseTemplate):
         file_name = self.file.get()
 
         if BaseTemplate.data is None:
-            tkmb.showerror("Template Generation", "Data is Unavailable")
+            messagebox.showerror("Template Generation", "Data is Unavailable")
             return
 
         file: NullStr = None
@@ -5507,11 +5502,11 @@ class TemplateGeneration(BaseTemplate):
             file = None
 
         if not (file_name):
-            tkmb.showerror("Template Generation", "File Name cannot be empty!")
+            messagebox.showerror("Template Generation", "File Name cannot be empty!")
             return
 
         if file is None:
-            tkmb.showerror("Template Generation", "Destination File cannot be empty!")
+            messagebox.showerror("Template Generation", "Destination File cannot be empty!")
             return
 
         if self.can_start_thread():
@@ -5530,7 +5525,7 @@ class TemplateGeneration(BaseTemplate):
             self.process.start()
             self.thread.start()
         else:
-            tkmb.showerror(
+            messagebox.showerror(
                 "Program Status", "Warning Background Thread is still running"
             )
 
@@ -5554,12 +5549,12 @@ class TemplateGeneration(BaseTemplate):
 
                     if status is not None:
                         if status:
-                            tkmb.showinfo("Template Generation", msg)
+                            messagebox.showinfo("Template Generation", msg)
                         else:
-                            tkmb.showwarning("Template Generation", msg)
+                            messagebox.showwarning("Template Generation", msg)
 
                     else:
-                        tkmb.showinfo(
+                        messagebox.showinfo(
                             "Template Generation", "Template Generation Failed"
                         )
 
@@ -5621,13 +5616,13 @@ class TemplateGeneration(BaseTemplate):
                     self.process.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
 
             elif self.encryption:
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -5648,12 +5643,12 @@ class TemplateGeneration(BaseTemplate):
                     self.thread.start()
 
                 else:
-                    tkmb.showerror(
+                    messagebox.showerror(
                         "Program Status",
                         "Warning Background Process/Thread is still running",
                     )
         else:
-            tkmb.showerror("File Status", "Empty file path was detected")
+            messagebox.showerror("File Status", "Empty file path was detected")
 
     def decrease_size(self):
         self.font_size.configure(text=max(MIN_TEXT_SIZE, self.size - 1))
@@ -5723,12 +5718,12 @@ class TemplateGeneration(BaseTemplate):
                 self.set_after_file_is_encrypted_state()
                 GUI_Handler.changeCommand(self.upload_button, self.load_encrypted_file)
 
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encrypted Status",
                     f"Excel File '{self.file.get()}' is encrypted. Please provide the password",
                 )
         else:
-            tkmb.showerror("File Status", f"File '{self.file.get()}' was not found")
+            messagebox.showerror("File Status", f"File '{self.file.get()}' was not found")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -5752,13 +5747,13 @@ class TemplateGeneration(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_unprotected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5780,7 +5775,7 @@ class TemplateGeneration(BaseTemplate):
 
             if (sheets) and (data is not None):
                 if not checkColumns(sheets, TEMPLATE_SHEET):
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following sheets: {', '.join(TEMPLATE_SHEET)}",
                     )
@@ -5792,7 +5787,7 @@ class TemplateGeneration(BaseTemplate):
                         for _data in data.values()
                     ]
                 ):  # type: ignore
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following columns in all sheets: {', '.join(TEMPLATE_COLUMN)}",
                     )
@@ -5803,11 +5798,11 @@ class TemplateGeneration(BaseTemplate):
                 self.set_after_upload_state()
                 GUI_Handler.view_excel(BaseTemplate.data[sheets[0]], self.text_excel)
 
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Upload Status", f"Excel File '{self.file.get()}' was loaded"
                 )
             else:
-                tkmb.showwarning(
+                messagebox.showwarning(
                     "File Status",
                     f"Excel File '{self.file.get()}' could not be loaded. Please ensure file",
                 )
@@ -5836,13 +5831,13 @@ class TemplateGeneration(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def load_protected_data_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5863,7 +5858,7 @@ class TemplateGeneration(BaseTemplate):
 
             if (sheets) and (data is not None):
                 if not checkColumns(sheets, TEMPLATE_SHEET):
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following sheets: {', '.join(TEMPLATE_SHEET)}",
                     )
@@ -5875,7 +5870,7 @@ class TemplateGeneration(BaseTemplate):
                         for _data in data.values()
                     ]
                 ):  # type: ignore
-                    tkmb.showwarning(
+                    messagebox.showwarning(
                         "File Status",
                         f"Excel File '{self.file.get()}' requires all the following columns in all sheets: {', '.join(TEMPLATE_COLUMN)}",
                     )
@@ -5887,11 +5882,11 @@ class TemplateGeneration(BaseTemplate):
                 GUI_Handler.view_excel(data[sheets[0]], self.text_excel)
 
                 self.prev_password = self.password_box.get()
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Upload Status", f"Excel File '{self.file.get()}' was loaded"
                 )
             else:
-                tkmb.showwarning(
+                messagebox.showwarning(
                     "File Status",
                     f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
                 )
@@ -5906,7 +5901,7 @@ class TemplateGeneration(BaseTemplate):
 
         if file_path:
             if self.encryption and (not password):
-                tkmb.showinfo(
+                messagebox.showinfo(
                     "Encryption Status",
                     f"File '{file_path}' is encrypted. Please enter the password",
                 )
@@ -5930,13 +5925,13 @@ class TemplateGeneration(BaseTemplate):
                 self.process.start()
 
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status",
                     "Warning Background Process/Thread is still running",
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
     def change_view_thread(self):
         GUI_Handler.lock_gui_button(self.to_disable)
@@ -5967,7 +5962,7 @@ class TemplateGeneration(BaseTemplate):
             GUI_Handler.view_excel(data[current_sheet], self.text_excel)
             self.prev_password = self.password_box.get()
         else:
-            tkmb.showwarning(
+            messagebox.showwarning(
                 "File Status",
                 f"Excel File '{self.file.get()}' could not be loaded. Please check the password",
             )
@@ -5984,12 +5979,12 @@ class TemplateGeneration(BaseTemplate):
                 self.thread = Thread(target=self.change_view_thread, daemon=True)
                 self.thread.start()
             else:
-                tkmb.showerror(
+                messagebox.showerror(
                     "Program Status", "Warning Background Thread is still running"
                 )
 
         else:
-            tkmb.showerror("File Status", "Empty file_path was detected")
+            messagebox.showerror("File Status", "Empty file_path was detected")
 
 
 class TkErrorCatcher:

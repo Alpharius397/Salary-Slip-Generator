@@ -1,12 +1,13 @@
+""" Mailing Module """
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from typing import Optional
+from pathlib import Path
 from logger import Logger
 import aiosmtplib
-from type import Optional
-from pathlib import Path
 
 
 class Mailing:

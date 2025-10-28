@@ -1,8 +1,10 @@
+""" Template Parser Module """
 import re
 from json import loads, dumps
 from pathlib import Path
 import os
-from type import Optional, Literal, NullStr, Hashable
+from typing import Optional, Literal, Hashable
+from dataType import NullStr
 from default import (
     DEFAULT_HTML,
     DEFAULT_SVV_HTML,
@@ -102,7 +104,7 @@ class PDFTemplate:
             a = pd.read_excel(file.resolve(), sheet_name=None)
 
             for sheet, sheetData in a.items():
-                memo[sheet] = sheetData.to_dict("list")
+                memo.update(**{sheet: sheetData.to_dict("list")})
 
             with open(Path(file.parent, "temp.json"), "w") as f:
                 f.write(dumps(memo))
