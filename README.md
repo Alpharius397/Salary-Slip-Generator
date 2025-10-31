@@ -18,11 +18,14 @@ Install dependencies:
 pip install -r requirement.txt
 ```
 
+Install wkhtmltopdf and place the wkhtmltopdf.exe into the main/bin folder
+
+
 ## Executable Build
 Build a exe using the following command
 
 ```bash
-pyinstaller --onefile main/App.py
+pyinstaller --onefile main/App.py --add-binary "main/bin;./bin"
 ```
 
 ## Benchmarks

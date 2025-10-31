@@ -114,7 +114,7 @@ class Database:
     def getTableName(
         month: MonthList, year: int, insti: InstituteList, type: TypeList
     ) -> str:
-        return sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}")
+        return sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}").replace(" ", "")
 
     def connectDatabase(self, host: str, user: str, password: str, database: str):
         try:
@@ -353,10 +353,10 @@ class Database:
         try:
             with self.db.cursor() as cursor:
                 cursor.execute(
-                    f"desc {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')}"
+                    f"desc {Database.getTableName(month, year, insti, type)}"
                 )
                 self.add_mysql_info(
-                    f"Checking table {sanitize_column(f'{insti.lower()}_{type.lower()}_{month.lower()}_{year}')} info"
+                    f"Checking table {Database.getTableName(month, year, insti, type)} info"
                 )
                 return [str(col_data[0]) for col_data in cursor.fetchall()]  # type: ignore
 

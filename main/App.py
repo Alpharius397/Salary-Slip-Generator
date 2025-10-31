@@ -1,4 +1,5 @@
 import base64
+from encodings.punycode import T
 import gc
 import io
 import json
@@ -15,7 +16,7 @@ import types
 from pathlib import Path
 from parser import PDFTemplate
 from threading import Thread, excepthook
-from tkinter import Scrollbar, filedialog, scrolledtext, messagebox
+from tkinter import N, Scrollbar, filedialog, scrolledtext, messagebox
 import customtkinter as ctk  # type: ignore
 import msoffcrypto
 import pandas as pd  # type: ignore
@@ -66,6 +67,22 @@ TEMPLATE_COLUMN = ["Name", "Column"]
 
 TYPE = type
 
+def find_wkhtmltopdf() -> Optional[pdfkit.pdfkit.Configuration]:
+    """ Find the bundled wkhtmltopdf binary """
+    WKHTML_PATH: str = None # type: ignore 
+
+    try:
+        WKHTML_PATH = str(sys._MEIPASS)
+    except AttributeError:
+        WKHTML_PATH = str(os.path.abspath("."))
+
+    try:
+        wkhtmltopdf = str(Path(str(WKHTML_PATH)).joinpath("bin", "wkhtmltopdf.exe"))
+        return pdfkit.configuration(wkhtmltopdf=wkhtmltopdf)
+    except (IOError, FileNotFoundError) as e:
+        ERROR_LOG.write_error(ERROR_LOG.get_error_info(e), "WKHTMLTOPDF")
+    
+    return None
 
 def email_check(x: str):
     """a helper function for email validation"""
@@ -236,7 +253,7 @@ class App:
 
     APP: ctk.CTk = ctk.CTk()
     TOGGLE: dict[str, list[str]] = {
-        "Somaiya": ["Teaching", "Non-Teaching", "Temporary"],
+        "Somaiya": ["Teaching", "Non Teaching", "Temporary"],
         "SVV": [
             "svv",
         ],
@@ -379,6 +396,7 @@ class PDFGenerator:
                 "margin-left": "0.5in",
                 "no-outline": None,
             },
+            configuration=find_wkhtmltopdf()
         )
 
     @staticmethod
@@ -1752,17 +1770,17 @@ class SendBulkMail(BaseTemplate):
                 self.clear_queue()
                 break
 
-        if data is not None:
+        if data is not None and not data.empty:
             GUI_Handler.place_after(self.exists_table, self.mail_button)
             messagebox.showinfo(
                 "Database Status",
-                f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} exists in database. Mass Mailing available",
+                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} exists in database. Mass Mailing available",
             )
             BaseTemplate.data = data
         else:
             messagebox.showinfo(
                 "Database Status",
-                f"Table {self.chosen_institute.get()}_{self.chosen_type.get()}_{self.chosen_month.get()}_{self.entry_year.get()} doesn't exist in database. Please upload data to database",
+                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} doesn't exist in database. Please upload data to database",
             )
 
         GUI_Handler.unlock_gui_button(self.to_disable)
