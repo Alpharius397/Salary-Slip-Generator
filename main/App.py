@@ -1,5 +1,4 @@
 import base64
-from encodings.punycode import T
 import gc
 import io
 import json
@@ -16,7 +15,7 @@ import types
 from pathlib import Path
 from parser import PDFTemplate
 from threading import Thread, excepthook
-from tkinter import N, Scrollbar, filedialog, scrolledtext, messagebox
+from tkinter import Scrollbar, filedialog, scrolledtext, messagebox
 import customtkinter as ctk  # type: ignore
 import msoffcrypto
 import pandas as pd  # type: ignore
@@ -1086,14 +1085,21 @@ class TemplateGenerator:
 
         html_string = TEMPLATE % memo
         file_name = file_name.replace(" ", "_")
-        status = PDF_TEMPLATE._load_defaults(
+        
+        
+        html_status = PDF_TEMPLATE._load_defaults(
             PDF_TEMPLATE.html_path, "html", **{file_name: html_string}
         )
-        queue.put((status))
-        status = PDF_TEMPLATE._load_defaults(
+        
+        if not html_status:
+            queue.put(False)
+            return
+        
+        json_status = PDF_TEMPLATE._load_defaults(
             PDF_TEMPLATE.json_path, "json", **{file_name: json.dumps(jsonDict)}
         )
-        queue.put((status))
+        
+        queue.put(json_status)
 
     @staticmethod
     def make_excel(
@@ -2110,7 +2116,7 @@ class Interface(BaseTemplate):
 
         self.template_button = ctk.CTkButton(
             master=self.frame,
-            text="Generate Templates",
+            text="Generate Salary-Slip Templates",
             command=self.template,
             fg_color=COLOR_SCHEME["button_color"],
             font=("Ubuntu", 16, "bold"),
@@ -2120,7 +2126,7 @@ class Interface(BaseTemplate):
 
         self.template_download_button = ctk.CTkButton(
             master=self.frame,
-            text="Download Templates",
+            text="Download Excel Templates",
             command=self.template_download,
             fg_color=COLOR_SCHEME["button_color"],
             font=("Ubuntu", 16, "bold"),
@@ -4658,7 +4664,7 @@ class TemplateInput(BaseTemplate):
             placeholder_text="Eg. Somaiya_Template",
             text_color=COLOR_SCHEME["text_color"],
             font=("Ubuntu", 16, "bold"),
-            width=100,
+            width=200,
         )
         self.template.pack(side="left", pady=10, padx=10)
         frame.pack(pady=10, padx=10)
@@ -4795,7 +4801,6 @@ class TemplateInput(BaseTemplate):
 
         status: Optional[bool] = None
         msg: str = "Something went wrong"
-        counterThat: int = 2
 
         while True:
             if self.stop_flag:
@@ -4804,24 +4809,18 @@ class TemplateInput(BaseTemplate):
             if not self.QUEUE.empty():
                 result = self.QUEUE.get()
 
-                if isinstance(result, tuple) and len(result) == 2:
-                    status, msg = result
+                if isinstance(result, bool):
+                    status = result
 
-                    if status is not None:
-                        if status:
-                            messagebox.showinfo("Template Generation", msg)
-                        else:
-                            messagebox.showwarning("Template Generation", msg)
-
+                    if status:
+                        messagebox.showinfo(
+                            "Salary Slip Template Generation", "Salary Slip Template Generation Successful"
+                        )
                     else:
                         messagebox.showinfo(
-                            "Template Generation", "Template Generation Failed"
+                            "Salary Slip Template Generation", "Salary Slip Template Generation Failed"
                         )
-
-                counterThat -= 1
-
-            if counterThat == 0:
-                self.clear_queue()
+                
                 break
 
         GUI_Handler.unlock_gui_button(self.to_disable)
