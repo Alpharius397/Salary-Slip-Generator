@@ -17,10 +17,10 @@ from parser import PDFTemplate
 from threading import Thread, excepthook
 from tkinter import Scrollbar, filedialog, scrolledtext, messagebox
 import customtkinter as ctk  # type: ignore
-import msoffcrypto
+import msoffcrypto # type: ignore
 import pandas as pd  # type: ignore
-import pdfkit
-import pyperclip
+import pdfkit # type: ignore
+import pyperclip # type: ignore
 from PIL import Image, ImageTk
 
 from creds import DB_CREDS, PROD_CREDS, TEST_CREDS
@@ -82,6 +82,28 @@ def find_wkhtmltopdf() -> Optional[pdfkit.pdfkit.Configuration]:
         ERROR_LOG.write_error(ERROR_LOG.get_error_info(e), "WKHTMLTOPDF")
     
     return None
+
+def load_doc() -> None:
+    """ Find the bundled doc """
+    DOC_PATH: str = None # type: ignore 
+
+    try:
+        DOC_PATH = str(sys._MEIPASS)
+    except AttributeError:
+        DOC_PATH = str(os.path.abspath("."))
+
+    try:
+        doc_path = Path(str(DOC_PATH)).joinpath("doc", "Salary Slip Generator Documentation.pdf")
+        
+        if doc_path.exists():
+            os.makedirs("doc", exist_ok=True)
+            
+            with open("doc/Salary Slip Generator Documentation.pdf", "wb") as dst, open(doc_path, "rb") as src:
+                dst.write(src.read())
+        
+    except (IOError, FileNotFoundError) as e:
+        ERROR_LOG.write_error(ERROR_LOG.get_error_info(e), "DOC")
+    
 
 def email_check(x: str):
     """a helper function for email validation"""
@@ -4120,7 +4142,7 @@ class DataPeek(BaseTemplate):
 
         ctk.CTkLabel(
             master=self.frame,
-            text="Data Preview",
+            text="Select Record to Remove",
             text_color=COLOR_SCHEME["text_color"],
             font=("Ubuntu", 25, "bold"),
             width=250,
@@ -4242,7 +4264,7 @@ class DataPeek(BaseTemplate):
         self.outer.CHILD[Interface.__name__].appear()
 
     def changeData(self):
-        """Initialization of the optionmenus"""
+        """Initialization of the option menu"""
         curr_institute = list(self.tables.keys())
         curr_type = list(self.tables[curr_institute[0]].keys())
         curr_year = list(self.tables[curr_institute[0]][curr_type[0]].keys())
@@ -4382,7 +4404,7 @@ class DeleteView(BaseTemplate):
 
         self.label_date = ctk.CTkLabel(
             master=self.frame,
-            text=f"Data View for {self.chosen_institute.capitalize()} {self.chosen_type.capitalize()} {self.chosen_month.capitalize()}/{self.chosen_year.upper()}",
+            text=f"Confirm Deletion of {self.chosen_institute.capitalize()} {self.chosen_type.capitalize()} {self.chosen_month.capitalize()}/{self.chosen_year.upper()}",
             text_color=COLOR_SCHEME["text_color"],
             font=("Ubuntu", 25, "bold"),
             width=250,
@@ -4423,7 +4445,7 @@ class DeleteView(BaseTemplate):
     def changeHeading(self):
         GUI_Handler.changeText(
             self.label_date,
-            f"Data View for {self.chosen_institute.capitalize()} {self.chosen_type.capitalize()} {self.chosen_month.capitalize()}/{self.chosen_year}",
+            f"Confirm Deletion of {self.chosen_institute.capitalize()} {self.chosen_type.capitalize()} {self.chosen_month.capitalize()}/{self.chosen_year.upper()}",
         )
 
     def back_to_view(self) -> None:
@@ -6057,5 +6079,6 @@ if __name__ == "__main__":
     app = App(500, 500, "Excel-To-Pdf Generator")
     app.APP.report_callback_exception = show_error  # type: ignore
     PDF_TEMPLATE.load_default()
+    load_doc()
     app.start_app()
     app.exit_app()

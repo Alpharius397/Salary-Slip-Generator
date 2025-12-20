@@ -2,7 +2,6 @@
 *.spec
 main/*.html
 SALARY SLIP.xlsx
-*.pdf
 main/pdfs
 05 SALARY SLIP AUG 2024.xlsx
 build_exe.txt
@@ -12,10 +11,7 @@ main/__pycache__
 *json*
 *html*
 *excel*
-pdfs
-main/html
-main/json
-sample.*
+*pdfs*
 creds.py
 venv
 .*

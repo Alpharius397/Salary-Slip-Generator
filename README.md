@@ -25,7 +25,7 @@ Install wkhtmltopdf and place the wkhtmltopdf.exe into the main/bin folder
 Build a exe using the following command
 
 ```bash
-pyinstaller --onefile main/App.py --add-binary "main/bin;./bin"
+pyinstaller --onefile main/App.py --add-binary "main/bin;./bin" --add-data "main/doc;./doc"
 ```
 
 ## Benchmarks
