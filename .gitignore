@@ -1,17 +1,28 @@
+# Pyinstaller 
 /build
 *.spec
-main/*.html
+dist/doc
+
+# Sensitive Files
 SALARY SLIP.xlsx
-main/pdfs
 05 SALARY SLIP AUG 2024.xlsx
 build_exe.txt
+
+# Temp Files
 tempCodeRunnerFile.py
-*.log
 main/__pycache__
+
+# App files
+*.log
 *json*
 *html*
 *excel*
 *pdfs*
 creds.py
+*.sqlite
+*.db
+
+# Python env
 venv
+
 .*

@@ -71,7 +71,7 @@ def find_wkhtmltopdf() -> Optional[pdfkit.pdfkit.Configuration]:
     WKHTML_PATH: str = None # type: ignore 
 
     try:
-        WKHTML_PATH = str(sys._MEIPASS)
+        WKHTML_PATH = str(sys._MEIPASS) # type: ignore 
     except AttributeError:
         WKHTML_PATH = str(os.path.abspath("."))
 
@@ -88,7 +88,7 @@ def load_doc() -> None:
     DOC_PATH: str = None # type: ignore 
 
     try:
-        DOC_PATH = str(sys._MEIPASS)
+        DOC_PATH = str(sys._MEIPASS) # type: ignore 
     except AttributeError:
         DOC_PATH = str(os.path.abspath("."))
 
@@ -145,6 +145,7 @@ def checkColumns(present_col: list[str], needed_col: list[str]) -> bool:
 
 ERROR_LOG = Logger(Path(APP_PATH).parent)
 PDF_TEMPLATE = PDFTemplate(Path(APP_PATH).parent, ERROR_LOG)
+DATABASE = Database(Path(APP_PATH).parent, ERROR_LOG)
 
 MIN_TEXT_SIZE: int = 12
 MAX_TEXT_SIZE: int = 25
@@ -295,8 +296,7 @@ class App:
         "nov": 11,
         "dec": 12,
     }
-    DB = Database(ERROR_LOG)
-
+    
     credit_frame = ctk.CTkFrame(
         master=APP, height=10, fg_color=COLOR_SCHEME["fg_color"]
     )
@@ -313,7 +313,7 @@ class App:
                 UploadData,
                 FileInput,
                 DataView,
-                MySQLLogin,
+                # SQLITELogin,
                 SendMail,
                 SendBulkMail,
                 Login,
@@ -329,7 +329,7 @@ class App:
             UploadData.__name__: UploadData(self),
             FileInput.__name__: FileInput(self),
             DataView.__name__: DataView(self),
-            MySQLLogin.__name__: MySQLLogin(self),
+            # SQLITELogin.__name__: SQLITELogin(self),
             SendMail.__name__: SendMail(self),
             SendBulkMail.__name__: SendBulkMail(self),
             Login.__name__: Login(self),
@@ -842,13 +842,9 @@ class MailingWrapper:
 class DatabaseWrapper:
     """Wrapper for DataBase"""
 
-    DATABASE = Database(ERROR_LOG)
-
     def connectToDatabase(self) -> Database:
         """Connect to database"""
-        return self.DATABASE.connectDatabase(
-            self.host, self.user, self.password, self.database
-        )
+        return DATABASE.connectDatabase()
 
     def __init__(self, host: str, user: str, password: str, database: str):
         self.host = host
@@ -920,7 +916,7 @@ class DatabaseWrapper:
 
     def endThis(self):
         """End connection"""
-        self.DATABASE.endDatabase()
+        DATABASE.endDatabase()
 
 
 class PandaWrapper:
@@ -1782,7 +1778,7 @@ class SendBulkMail(BaseTemplate):
         if entry_folder:
             GUI_Handler.change_file_holder(self.folder, entry_folder)
 
-    def table_exists_thread(self):
+    def table_exists_thread(self) -> None:
         GUI_Handler.lock_gui_button(self.to_disable)
         GUI_Handler.changeCommand(self.quit, self.table_exists_cancel_thread)
         GUI_Handler.place_after(self.exists_table, self.quit)
@@ -1802,13 +1798,13 @@ class SendBulkMail(BaseTemplate):
             GUI_Handler.place_after(self.exists_table, self.mail_button)
             messagebox.showinfo(
                 "Database Status",
-                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} exists in database. Mass Mailing available",
+                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} exists in database. Mass Mailing available", # type: ignore
             )
             BaseTemplate.data = data
         else:
             messagebox.showinfo(
                 "Database Status",
-                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} doesn't exist in database. Please upload data to database",
+                f"Table {Database.getTableName(self.chosen_month.get(),self.entry_year.get(),self.chosen_institute.get(),self.chosen_type.get())} doesn't exist in database. Please upload data to database", # type: ignore
             )
 
         GUI_Handler.unlock_gui_button(self.to_disable)
@@ -1941,7 +1937,15 @@ class Login(BaseTemplate):
                 title="Login Successful", message="You have logged in Successfully"
             )
             ERROR_LOG.write_info("User Logged in")
-            self.switch_screen(MySQLLogin)
+            
+            if DATABASE.connectDatabase().isConnected():
+                DATABASE.endDatabase()
+                messagebox.showinfo("SQLITE Status", "SQLITE Connection Established")
+                self.switch_screen(Interface)
+            else:
+                messagebox.showinfo("SQLITE Status", "SQLITE Connection Failed")
+                
+            self.switch_screen(Interface)
         else:
             messagebox.showwarning(
                 title="Wrong password", message="Please check your username/password"
@@ -1950,138 +1954,6 @@ class Login(BaseTemplate):
     def quit(self):
         if messagebox.askyesnocancel("Confirmation", "Are you sure you want to exit"):
             self.outer.APP.quit()
-
-
-class MySQLLogin(BaseTemplate):
-    def __init__(self, outer: App) -> None:
-        super().__init__(outer)
-
-        ctk.CTkLabel(
-            master=self.frame,
-            text="MySQL Login Page",
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 25, "bold"),
-            width=250,
-        ).pack(pady=20, padx=10)
-
-        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
-        ctk.CTkLabel(
-            master=frame,
-            text="Host:",
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        ).pack(padx=10, pady=10, side="left")
-        self.host = ctk.CTkEntry(
-            master=frame,
-            placeholder_text="Host",
-            width=250,
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        )
-        self.host.insert(0, "localhost")
-        self.host.pack(padx=10, pady=10, side="left")
-        frame.pack()
-
-        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
-        ctk.CTkLabel(
-            master=frame,
-            text="Username:",
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        ).pack(padx=10, pady=10, side="left")
-        self.user = ctk.CTkEntry(
-            placeholder_text="Username",
-            master=frame,
-            width=250,
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        )
-        self.user.insert(0, "root")
-        self.user.pack(padx=10, pady=10, side="left")
-        frame.pack()
-
-        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
-        ctk.CTkLabel(
-            master=frame,
-            text="Password:",
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        ).pack(padx=10, pady=10, side="left")
-        self.password = ctk.CTkEntry(
-            master=frame,
-            placeholder_text="Password",
-            show="*",
-            width=250,
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        )
-        self.password.pack(padx=10, pady=10, side="left")
-        frame.pack()
-
-        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
-        ctk.CTkLabel(
-            master=frame,
-            text="Database:",
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        ).pack(padx=10, pady=10, side="left")
-        self.database = ctk.CTkEntry(
-            master=frame,
-            placeholder_text="Database",
-            width=250,
-            text_color=COLOR_SCHEME["text_color"],
-            font=("Ubuntu", 16, "bold"),
-        )
-        self.database.pack(padx=10, pady=10, side="left")
-        frame.pack()
-
-        ctk.CTkButton(
-            master=self.frame,
-            text="Continue",
-            command=self.next,
-            fg_color=COLOR_SCHEME["button_color"],
-            font=("Ubuntu", 16, "bold"),
-            width=250,
-        ).pack(pady=10, padx=10)
-        ctk.CTkButton(
-            master=self.frame,
-            text="Back",
-            command=self.back,
-            fg_color=COLOR_SCHEME["button_color"],
-            font=("Ubuntu", 16, "bold"),
-            width=250,
-        ).pack(pady=10, padx=10)
-
-    # back to login page
-    def back(self):
-        self.hide()
-        self.outer.CHILD[Login.__name__].appear()
-
-    # moves to next page (landing) is mysql connection was established
-    def next(self):
-        host = self.outer.CRED["host"] = (
-            self.host.get() if not IS_DEBUG else MYSQL_CRED["host"]
-        )
-        user = self.outer.CRED["user"] = (
-            self.user.get() if not IS_DEBUG else MYSQL_CRED["user"]
-        )
-        password = self.outer.CRED["password"] = (
-            self.password.get() if not IS_DEBUG else MYSQL_CRED["password"]
-        )
-        database = self.outer.CRED["database"] = (
-            self.database.get() if not IS_DEBUG else MYSQL_CRED["database"]
-        )
-
-        if host and user and password and database:
-            if self.outer.DB.connectDatabase(**self.outer.CRED).isConnected():
-                self.outer.DB.endDatabase()
-                messagebox.showinfo("MySQL Status", "MySQL Connection Established")
-                self.switch_screen(Interface)
-            else:
-                messagebox.showinfo("MySQL Status", "MySQL Connection Failed")
-
-        else:
-            messagebox.showwarning(title="Empty Field", message="Please fill the all fields")
 
 
 class Interface(BaseTemplate):
@@ -2159,7 +2031,7 @@ class Interface(BaseTemplate):
         self.back = ctk.CTkButton(
             master=self.frame,
             text="Back",
-            command=self.back_to_mysql,
+            command=self.back_to_login,
             fg_color=COLOR_SCHEME["button_color"],
             font=("Ubuntu", 16, "bold"),
             width=250,
@@ -2176,9 +2048,9 @@ class Interface(BaseTemplate):
         )
         self.to_disable = list(self.get_widgets_to_disable())
 
-    def back_to_mysql(self) -> None:
+    def back_to_login(self) -> None:
         """back to mysql setup page"""
-        self.switch_screen(MySQLLogin)
+        self.switch_screen(Login)
 
     def upload(self) -> None:
         """proceeds to upload page"""
@@ -2206,7 +2078,7 @@ class Interface(BaseTemplate):
             self.outer.CHILD[DataPreview.__name__].changeData()  # type: ignore
             self.switch_screen(DataPreview)
         else:
-            messagebox.showerror("MySQL Error", "No data available to preview")
+            messagebox.showerror("SQLITE Error", "No data available to preview")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -2255,7 +2127,7 @@ class Interface(BaseTemplate):
             self.outer.CHILD[DataPeek.__name__].changeData()  # type: ignore
             self.switch_screen(DataPeek)
         else:
-            messagebox.showerror("MySQL Error", "No data available to delete")
+            messagebox.showerror("SQLITE Error", "No data available to delete")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -3946,7 +3818,7 @@ class UploadData(BaseTemplate):
                 GUI_Handler.place_after(self.create_button, self.update_button)
 
         else:
-            messagebox.showinfo("Database Status", "MySQL Error occurred")
+            messagebox.showinfo("Database Status", "SQLITE Error occurred")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4019,7 +3891,7 @@ class UploadData(BaseTemplate):
                     messagebox.showinfo("Database Status", UpdateTable.SUCCESS)
 
         else:
-            messagebox.showinfo("Database Status", "MySQL Error occurred")
+            messagebox.showinfo("Database Status", "SQLITE Error occurred")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4381,7 +4253,7 @@ class DataPeek(BaseTemplate):
             self.tables = table
             self.changeData()
         else:
-            messagebox.showerror("MySQL Error", "No Data Available to delete")
+            messagebox.showerror("SQLITE Error", "No Data Available to delete")
             self.hide()
             self.outer.CHILD[Interface.__name__].appear()
 
@@ -4480,7 +4352,7 @@ class DeleteView(BaseTemplate):
         elif result is not None:
             messagebox.showinfo("Database Status", "Table does not exists")
         else:
-            messagebox.showinfo("Database Status", "MySQL Error occured")
+            messagebox.showinfo("Database Status", "SQLITE Error occured")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)

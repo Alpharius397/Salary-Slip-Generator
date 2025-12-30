@@ -1,2 +1,0 @@
-pip install pyinstaller
-pyinstaller --onefile -w 'filename.py'

@@ -1,17 +1,24 @@
+import sys
+import pysqlite3 # type: ignore
+
+# Here cause i want auto-complete
+sys.modules['sqlite3'] = pysqlite3
+
+from pathlib import Path
 import re
 import pandas as pd  # type: ignore
-import mysql  # type: ignore
-import mysql.connector  # type: ignore
-import mysql.connector.abstracts  # type: ignore
 import numpy as np
 from logger import Logger
 from typing import Iterable, Optional 
 from dataType import NullStr, TypeList, InstituteList, MonthList
-from enum import Enum
 
 
-ERROR = "MySQL Connection Failed! Please try again"
+import sqlite3
+
+ERROR = "SQLITE Connection Failed! Please try again"
 NO_ID = "HR Emp Code column was not found!"
+DB_NAME = "db.sqlite"
+SECRET_NAME = "dont-ever-change-this"
 
 class CreateTable:
     SUCCESS = "Table Generated Successfully"
@@ -19,7 +26,6 @@ class CreateTable:
     COLUMNS_MISMATCH = "Table exists, but columns do not match to those in database"
     ERROR = ERROR
     NO_ID = NO_ID
-
 
 class UpdateTable:
     ERROR = ERROR
@@ -103,12 +109,12 @@ def check_column(col: str, pd_Data: pd.DataFrame) -> NullStr:
 
 
 class Database:
-    def __init__(self, error_logger: Logger) -> None:
+    def __init__(self, root_dir: Path, error_logger: Logger) -> None:
         self.db: Optional[
-            mysql.connector.abstracts.MySQLConnectionAbstract
-            | mysql.connector.pooling.PooledMySQLConnection
+            sqlite3.Connection
         ] = None
         self.logger = error_logger
+        self.root_dir = root_dir
 
     @staticmethod
     def getTableName(
@@ -116,28 +122,20 @@ class Database:
     ) -> str:
         return sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}").replace(" ", "")
 
-    def connectDatabase(self, host: str, user: str, password: str, database: str):
+    def connectDatabase(self):
         try:
-            self.db = mysql.connector.connect(
-                host=host, user=user, password=password, database=database
-            )
+            self.db = sqlite3.connect(self.root_dir.joinpath(DB_NAME).resolve())
+            self.db.execute(f"PRAGMA key='{SECRET_NAME}';")
+            self.db.commit()
 
-            self.add_mysql_info(f"Connected to Database {database}")
+            self.add_sqlite_info(f"Connected to Database {DB_NAME}")
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
 
         return self
 
     def isConnected(self):
-        if self.db is None:
-            return False
-
-        try:
-            return bool(self.db.is_connected())
-        except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
-
-        return False
+        return self.db is not None
 
     def column_check(
         self,
@@ -153,6 +151,7 @@ class Database:
         for col in columns:
             if (col in seen) or (col not in db_columns):
                 return False
+            
             seen.add(col)
 
         return True
@@ -178,28 +177,31 @@ class Database:
             return CreateTable.ERROR
 
         try:
-            with self.db.cursor() as cursor:
-                table_name = self.getTableName(month, year, insti, type)
-                sql = f"""CREATE TABLE {table_name}(
-                    {
-                    ",".join(
-                        [
-                            f"{sanitize_column(col)} VARCHAR(225) PRIMARY KEY"
-                            if (col == code_col)
-                            else f"{sanitize_column(col)} VARCHAR(225)"
-                            for col in columns
-                        ]
-                    )
-                }
-                )"""
+            cursor = self.db.cursor()
+            
+            table_name = self.getTableName(month, year, insti, type)
+            
+            sql = f"""CREATE TABLE {table_name}(
+                {
+                ",".join(
+                    [
+                        f"{sanitize_column(col)} TEXT PRIMARY KEY"
+                        if (col == code_col)
+                        else f"{sanitize_column(col)} TEXT"
+                        for col in columns
+                    ]
+                )
+            }
+            )"""
 
-                cursor.execute(sql)
-                self.add_mysql_info(f"Created table {table_name}")
-                self.db.commit()
-                return CreateTable.SUCCESS
+            cursor.execute(sql)
+            self.add_sqlite_info(f"Created table {table_name}")
+            self.db.commit()
+            
+            return CreateTable.SUCCESS
 
-        except mysql.connector.errors.ProgrammingError as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+        except sqlite3.OperationalError as e:
+            self.add_sqlite_error(self.logger.get_error_info(e))
 
             if sorted(self.getColumns(month, year, insti, type)) != sorted(columns):
                 return CreateTable.COLUMNS_MISMATCH
@@ -207,7 +209,7 @@ class Database:
                 return CreateTable.EXISTS
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return CreateTable.ERROR
 
     def updateData(
@@ -236,44 +238,31 @@ class Database:
         keys = ",".join(map(sanitize_column, list(columns.keys())))
         table_name = self.getTableName(month, year, insti, type)
 
+            
+        placeholders = ", ".join(["?" for _ in range(len(data.columns))])
+        
         try:
-            with self.db.cursor() as cursor:
-                for row in data.itertuples(index=False):
-                    row_data = {
-                        col: cleanData(row[columns[col]]) for col in data.columns
-                    }
-                    query = ",".join(
-                        [
-                            f"{sanitize_column(col)}={sanitize_value(str(data[col]))}"
-                            for col in row_data
-                        ]
-                    )  # type: ignore
-                    values = ",".join(map(sanitize_value, list(row_data.values())))
+            cursor = self.db.cursor()
 
-                    try:
-                        cursor.execute(
-                            f"INSERT INTO {table_name} ({keys}) VALUE ({values});"
-                        )
-                        self.add_mysql_info(f"Inserting data into {table_name}")
-
-                    except mysql.connector.errors.IntegrityError as e:
-                        self.add_mysql_error(self.logger.get_error_info(e))
-
-                        try:
-                            cursor.execute(
-                                f"UPDATE {table_name} SET {query} WHERE {sanitize_column(id)}={sanitize_value(str(data[id]))};"
-                            )  # type: ignore
-                            self.add_mysql_info(f"Updating data into {table_name}")
-
-                        except Exception as f:
-                            self.add_mysql_error(self.logger.get_error_info(f))
-                            return UpdateTable.ERROR
-
-                    self.db.commit()
-
-        except Exception as g:
-            self.add_mysql_error(self.logger.get_error_info(g))
+            cursor.execute("BEGIN")
+            
+            cursor.executemany(
+                f"INSERT OR REPLACE INTO {table_name} ({keys}) VALUES ({placeholders})"
+            , [
+                [
+                    row[columns[col]] for col in data.columns
+                ] for row in data.itertuples(index=False)
+            ])
+            
+            cursor.execute("END")
+            
+            self.db.commit()
+            
+        except Exception as e:
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return UpdateTable.ERROR
+
+        self.add_sqlite_info(f"Inserting data into {table_name}")
 
         return UpdateTable.SUCCESS
 
@@ -288,20 +277,21 @@ class Database:
         table_name = self.getTableName(month, year, insti, type)
 
         try:
-            with self.db.cursor() as cursor:
-                cursor.execute(f"drop table {table_name}")
-                self.add_mysql_info(
-                    f"Deleting data from {table_name} (Hope you have backup!)"
-                )
-                self.db.commit()
-                return DeleteTable.SUCCESS
+            self.db.execute(f"drop table {table_name}")
+            
+            self.add_sqlite_info(
+                f"Deleting data from {table_name} (Hope you have backup!)"
+            )
+            
+            self.db.commit()
+            return DeleteTable.SUCCESS
 
-        except mysql.connector.ProgrammingError as f:
-            self.add_mysql_error(self.logger.get_error_info(f))
+        except sqlite3.OperationalError as f:
+            self.add_sqlite_error(self.logger.get_error_info(f))
             return DeleteTable.TABLE_NOT_FOUND
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return DeleteTable.ERROR
 
     def showTables(self) -> dict[str, dict[str, dict[str, set[str]]]]:
@@ -314,13 +304,13 @@ class Database:
             return memo
 
         try:
-            with self.db.cursor() as cursor:
-                cursor.execute("SHOW TABLES")
-                tables = [str(col[0]) for col in cursor.fetchall()]  # type: ignore
-                self.add_mysql_info("Fetching table(s) info")
+            cursor = self.db.cursor()
+            cursor.execute("PRAGMA main.table_list")
+            tables = [str(col[1]) for col in cursor.fetchall()]  # type: ignore
+            self.add_sqlite_info("Fetching table(s) info")
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return memo
 
         for table in tables:
@@ -337,7 +327,7 @@ class Database:
                 memo[insti][type][year].add(month)
 
             else:
-                self.add_mysql_error(
+                self.add_sqlite_error(
                     f"Unexpected table name format: {table}. {TABLE_FORMAT}"
                 )
 
@@ -351,17 +341,19 @@ class Database:
             return []
 
         try:
-            with self.db.cursor() as cursor:
-                cursor.execute(
-                    f"desc {Database.getTableName(month, year, insti, type)}"
-                )
-                self.add_mysql_info(
-                    f"Checking table {Database.getTableName(month, year, insti, type)} info"
-                )
-                return [str(col_data[0]) for col_data in cursor.fetchall()]  # type: ignore
+            cursor = self.db.cursor() 
+            
+            cursor.execute(
+                f"PRAGMA table_info({Database.getTableName(month, year, insti, type)})"
+            )
+            self.add_sqlite_info(
+                f"Checking table {Database.getTableName(month, year, insti, type)} info"
+            )
+            
+            return [str(col_data[1]) for col_data in cursor.fetchall()]  # type: ignore
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return []
 
     def fetchAll(
@@ -374,20 +366,21 @@ class Database:
         if self.db is None:
             return data
 
-        table_name = self.getTableName(month, year, insti, type)
+        table_name = Database.getTableName(month, year, insti, type)
 
         try:
             columns = self.getColumns(month, year, insti, type)
-            with self.db.cursor() as cursor:
-                cursor.execute(f"SELECT * FROM {table_name}")
-                self.add_mysql_info(f"Fetching data from table {table_name}")
+            cursor = self.db.cursor()
+            
+            cursor.execute(f"SELECT * FROM {table_name}")
+            self.add_sqlite_info(f"Fetching data from table {table_name}")
 
-                result = cursor.fetchall()
+            result = cursor.fetchall()
 
-                return pd.DataFrame(result, columns=columns, dtype=str)
+            return pd.DataFrame(result, columns=columns, dtype=str)
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
             return data
 
     def endDatabase(self):
@@ -397,15 +390,15 @@ class Database:
 
         try:
             self.db.close()
-            self.add_mysql_info("Closing connection o7")
+            self.add_sqlite_info("Closing connection o7")
 
         except Exception as e:
-            self.add_mysql_error(self.logger.get_error_info(e))
+            self.add_sqlite_error(self.logger.get_error_info(e))
 
         return self
 
-    def add_mysql_error(self, msg: str):
-        self.logger.write_error(msg, "MySQL")
+    def add_sqlite_error(self, msg: str):
+        self.logger.write_error(msg, "SQLITE")
 
-    def add_mysql_info(self, msg: str):
-        self.logger.write_info(msg, "MySQL")
+    def add_sqlite_info(self, msg: str):
+        self.logger.write_info(msg, "SQLITE")
