@@ -28,7 +28,7 @@ pip install -r requirement.txt
 ### Compile SqlCipher using pysqlite (works on my machine and needs Visual Studio)
 
 0) Install OpenSSL v3.3.5 and TCL
-Tcl is required to build SQLite. You can download it from ![IronTCL](https://www.irontcl.com/). Once you have downloaded it, extract it to a folder and navigate to the bin directory. Copy the file tclsh86t.exe to tclsh.exe. This is because the build looks for tclsh.exe.
+Tcl is required to build SQLite. You can download it from [IronTCL](https://www.irontcl.com/). Once you have downloaded it, extract it to a folder and navigate to the bin directory. Copy the file tclsh86t.exe to tclsh.exe. This is because the build looks for tclsh.exe.
 
 
 1) Clone the sqlcipher repo and switch to the v4.5.7 (Sqlite v3.45.3)
@@ -38,7 +38,7 @@ git checkout v4.5.7
 ```
 
 
-2) Follow this ![guide](https://www.domstamand.com/compiling-sqlcipher-sqlite-encrypted-for-windows-using-visual-studio-2022/). Make sure to add this flags to the **Makefile.msc** at the appropriate place
+2) Follow this [guide](https://www.domstamand.com/compiling-sqlcipher-sqlite-encrypted-for-windows-using-visual-studio-2022/). Make sure to add this flags to the **Makefile.msc** at the appropriate place
 
 ```Makefile
 TCC = $(TCC) -DSQLITE_HAS_CODEC -I"path\to\OpenSSL\include" -DSQLITE_TEMP_STORE=2 -MT
