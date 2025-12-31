@@ -13,10 +13,8 @@ class SMTP_CRED(TypedDict):
 class DB_CRED(TypedDict):
     """DB Credentials Template"""
 
-    host: str
-    user: str
-    password: str
-    database: str
+    db_name: str
+    key: str
 
 
 type NullStr = Optional[str]

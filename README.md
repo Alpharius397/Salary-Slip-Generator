@@ -11,6 +11,13 @@ A Python-based GUI tool to automate the generation of salary slips for employees
 - Securely store all data into local MySql database
 - Optional conversion into executable for non-Python users  
 
+## Quickstart Guide
+
+Just run the following command (Windows Only) to setup and compile the exe
+```bash
+build_exe
+```
+
 ## Requirements
 Install dependencies:
 
@@ -87,6 +94,17 @@ import sqlite3 # This will generate an encrypted sqlite db
 ### wkhtmltopdf dependency
 Install wkhtmltopdf and place the wkhtmltopdf.exe into the main/bin folder
 
+### Creds addition
+
+In the main folder, add the following file: **creds.py** with following code
+
+```python
+"Private Creds"
+from dataType import SMTP_CRED
+
+PROD_CREDS = SMTP_CRED(email="smtp-email", key="smtp-key") # Prod creds
+TEST_CREDS = SMTP_CRED(email="smtp-email", key="smtp-key") # Test Creds 
+```
 
 ## Executable Build
 Build a exe using the following command

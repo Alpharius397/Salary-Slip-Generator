@@ -9,15 +9,15 @@ SALARY SLIP.xlsx
 build_exe.txt
 
 # Temp Files
-tempCodeRunnerFile.py
+tempCodeRunnerFile*
 main/__pycache__
 
 # App files
 *.log
-*json*
-*html*
-*excel*
-*pdfs*
+*json
+*html
+*excel
+*pdfs
 creds.py
 *.sqlite
 *.db

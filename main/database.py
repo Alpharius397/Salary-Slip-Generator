@@ -17,8 +17,6 @@ import sqlite3
 
 ERROR = "SQLITE Connection Failed! Please try again"
 NO_ID = "HR Emp Code column was not found!"
-DB_NAME = "db.sqlite"
-SECRET_NAME = "dont-ever-change-this"
 
 class CreateTable:
     SUCCESS = "Table Generated Successfully"
@@ -122,13 +120,13 @@ class Database:
     ) -> str:
         return sanitize_column(f"{insti.lower()}_{type.lower()}_{month.lower()}_{year}").replace(" ", "")
 
-    def connectDatabase(self):
+    def connectDatabase(self, db_name: str, key: str):
         try:
-            self.db = sqlite3.connect(self.root_dir.joinpath(DB_NAME).resolve())
-            self.db.execute(f"PRAGMA key='{SECRET_NAME}';")
+            self.db = sqlite3.connect(self.root_dir.joinpath(f"{db_name}.sqlite").resolve())
+            self.db.execute(f"PRAGMA key='{key}';")
             self.db.commit()
 
-            self.add_sqlite_info(f"Connected to Database {DB_NAME}")
+            self.add_sqlite_info(f"Connected to Database {db_name}.sqlite")
         except Exception as e:
             self.add_sqlite_error(self.logger.get_error_info(e))
 

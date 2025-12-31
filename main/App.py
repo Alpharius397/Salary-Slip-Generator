@@ -23,7 +23,7 @@ import pdfkit # type: ignore
 import pyperclip # type: ignore
 from PIL import Image, ImageTk
 
-from creds import DB_CREDS, PROD_CREDS, TEST_CREDS
+from creds import PROD_CREDS, TEST_CREDS
 from database import (
     CreateTable,
     Database,
@@ -37,16 +37,17 @@ from logger import Logger
 from mail import AsyncMailing, AsyncMessage, Mailing, MIMEMultipart
 from dataType import MonthList, InstituteList, DB_CRED, NullStr, TypeList
 
-IS_EXE = True
-""" when building .exe set to true """
+IS_EXE = bool(getattr(sys, 'frozen', False)) and hasattr(sys, '_MEIPASS')
 
-IS_DEBUG = False
-""" for testing set to true """
+IS_DEBUG = True and (not IS_EXE)
+""" for testing set to true. Defaults to False in exe """
 
-APP_PATH = __file__ if not IS_EXE else sys.executable
+APP_PATH = sys.executable if (IS_EXE) else __file__
 
-MYSQL_CRED = DB_CREDS
-""" your mysql creds for testing (works if is_debug == True) """
+SQLite_CRED = DB_CRED(
+    db_name="secure", key="do-not-change-this-ever"
+)
+""" your SQLite creds for testing (works if is_debug == True) """
 
 MAIL_CRED = PROD_CREDS if not IS_DEBUG else TEST_CREDS
 
@@ -68,12 +69,7 @@ TYPE = type
 
 def find_wkhtmltopdf() -> Optional[pdfkit.pdfkit.Configuration]:
     """ Find the bundled wkhtmltopdf binary """
-    WKHTML_PATH: str = None # type: ignore 
-
-    try:
-        WKHTML_PATH = str(sys._MEIPASS) # type: ignore 
-    except AttributeError:
-        WKHTML_PATH = str(os.path.abspath("."))
+    WKHTML_PATH = str(getattr(sys, '_MEIPASS')) if IS_EXE else os.path.abspath(".")
 
     try:
         wkhtmltopdf = str(Path(str(WKHTML_PATH)).joinpath("bin", "wkhtmltopdf.exe"))
@@ -85,20 +81,16 @@ def find_wkhtmltopdf() -> Optional[pdfkit.pdfkit.Configuration]:
 
 def load_doc() -> None:
     """ Find the bundled doc """
-    DOC_PATH: str = None # type: ignore 
-
-    try:
-        DOC_PATH = str(sys._MEIPASS) # type: ignore 
-    except AttributeError:
-        DOC_PATH = str(os.path.abspath("."))
+    DOC_PATH: str = str(getattr(sys, '_MEIPASS')) if IS_EXE else os.path.abspath(".") 
 
     try:
         doc_path = Path(str(DOC_PATH)).joinpath("doc", "Salary Slip Generator Documentation.pdf")
+        real_path = Path(APP_PATH).parent.joinpath("doc")
         
         if doc_path.exists():
-            os.makedirs("doc", exist_ok=True)
+            os.makedirs(real_path, exist_ok=True)
             
-            with open("doc/Salary Slip Generator Documentation.pdf", "wb") as dst, open(doc_path, "rb") as src:
+            with open(real_path.joinpath("Salary Slip Generator Documentation.pdf"), "wb") as dst, open(doc_path, "rb") as src:
                 dst.write(src.read())
         
     except (IOError, FileNotFoundError) as e:
@@ -125,11 +117,8 @@ def file_clean(x: str):
 
     def _clean(string: str, not_allowed: str) -> str:
         deny = set(not_allowed)
-        new_string: str = ""
+        new_string: str = "".join([ i for i in string if i not in deny])
 
-        for i in string:
-            if i not in deny:
-                new_string += i
         return "none" if (not new_string) else new_string
 
     return _clean(x, """<>:"/\\?*'\n""")
@@ -281,7 +270,9 @@ class App:
         ],
     }
 
-    CRED = DB_CRED(host="", user="", password="", database="")
+    CRED = SQLite_CRED 
+    """ Wrong key can just make """
+    
     MONTH: dict[str, int] = {
         "jan": 1,
         "feb": 2,
@@ -313,7 +304,7 @@ class App:
                 UploadData,
                 FileInput,
                 DataView,
-                # SQLITELogin,
+                SQLiteLogin,
                 SendMail,
                 SendBulkMail,
                 Login,
@@ -329,7 +320,7 @@ class App:
             UploadData.__name__: UploadData(self),
             FileInput.__name__: FileInput(self),
             DataView.__name__: DataView(self),
-            # SQLITELogin.__name__: SQLITELogin(self),
+            SQLiteLogin.__name__: SQLiteLogin(self),
             SendMail.__name__: SendMail(self),
             SendBulkMail.__name__: SendBulkMail(self),
             Login.__name__: Login(self),
@@ -844,13 +835,11 @@ class DatabaseWrapper:
 
     def connectToDatabase(self) -> Database:
         """Connect to database"""
-        return DATABASE.connectDatabase()
+        return DATABASE.connectDatabase(self.db_name, self.key)
 
-    def __init__(self, host: str, user: str, password: str, database: str):
-        self.host = host
-        self.user = user
-        self.password = password
-        self.database = database
+    def __init__(self, db_name: str, key: str):
+        self.db_name = db_name
+        self.key = key
 
     def check_table(self, queue: Queue) -> None:
         """Wrapper for showTables"""
@@ -1938,13 +1927,7 @@ class Login(BaseTemplate):
             )
             ERROR_LOG.write_info("User Logged in")
             
-            if DATABASE.connectDatabase().isConnected():
-                DATABASE.endDatabase()
-                messagebox.showinfo("SQLITE Status", "SQLITE Connection Established")
-                self.switch_screen(Interface)
-            else:
-                messagebox.showinfo("SQLITE Status", "SQLITE Connection Failed")
-                
+            # self.switch_screen(SQLiteLogin)
             self.switch_screen(Interface)
         else:
             messagebox.showwarning(
@@ -1954,6 +1937,99 @@ class Login(BaseTemplate):
     def quit(self):
         if messagebox.askyesnocancel("Confirmation", "Are you sure you want to exit"):
             self.outer.APP.quit()
+
+class SQLiteLogin(BaseTemplate):
+    def __init__(self, outer: App) -> None:
+        super().__init__(outer)
+
+        ctk.CTkLabel(
+            master=self.frame,
+            text="SQLite  Login Page",
+            text_color=COLOR_SCHEME["text_color"],
+            font=("Ubuntu", 25, "bold"),
+            width=250,
+        ).pack(pady=20, padx=10)
+
+        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
+        ctk.CTkLabel(
+            master=frame,
+            text="Database Name:",
+            text_color=COLOR_SCHEME["text_color"],
+            font=("Ubuntu", 16, "bold"),
+        ).pack(padx=10, pady=10, side="left")
+        
+        self.db_name = ctk.CTkEntry(
+            master=frame,
+            placeholder_text="Host",
+            width=250,
+            text_color=COLOR_SCHEME["text_color"],
+            font=("Ubuntu", 16, "bold"),
+        )
+        self.db_name.insert(0, "secure")
+        self.db_name.pack(padx=10, pady=10, side="left")
+        frame.pack()
+
+        frame = ctk.CTkFrame(master=self.frame, fg_color=COLOR_SCHEME["fg_color"])
+        
+        ctk.CTkLabel(
+            master=frame,
+            text="Secret Key:",
+            text_color=COLOR_SCHEME["text_color"],
+            font=("Ubuntu", 16, "bold"),
+        ).pack(padx=10, pady=10, side="left")
+        
+        self.key = ctk.CTkEntry(
+            placeholder_text="Secret Key",
+            master=frame,
+            show="*",
+            width=250,
+            text_color=COLOR_SCHEME["text_color"],
+            font=("Ubuntu", 16, "bold"),
+        )
+        self.key.pack(padx=10, pady=10, side="left")
+        frame.pack()
+
+        ctk.CTkButton(
+            master=self.frame,
+            text="Continue",
+            command=self.next,
+            fg_color=COLOR_SCHEME["button_color"],
+            font=("Ubuntu", 16, "bold"),
+            width=250,
+        ).pack(pady=10, padx=10)
+        
+        ctk.CTkButton(
+            master=self.frame,
+            text="Back",
+            command=self.back,
+            fg_color=COLOR_SCHEME["button_color"],
+            font=("Ubuntu", 16, "bold"),
+            width=250,
+        ).pack(pady=10, padx=10)
+
+    # back to login page
+    def back(self):
+        self.hide()
+        self.outer.CHILD[Login.__name__].appear()
+
+    # moves to next page (landing) is mysql connection was established
+    def next(self):
+        db_name = self.outer.CRED["db_name"] = (
+            self.db_name.get() if not IS_DEBUG else SQLite_CRED["db_name"]
+        )
+        key = self.outer.CRED["key"] = (
+            self.key.get() if not IS_DEBUG else SQLite_CRED["key"]
+        )
+        
+        if key and db_name:
+            if DATABASE.connectDatabase(db_name, key).isConnected():
+                DATABASE.endDatabase()
+                messagebox.showinfo("SQLITE Status", "SQLITE Connection Established")
+                self.switch_screen(Interface)
+            else:
+                messagebox.showinfo("SQLITE Status", "SQLITE Connection Failed")
+        else:
+            messagebox.showwarning(title="Empty Field", message="Please fill the all fields")
 
 
 class Interface(BaseTemplate):
@@ -2049,7 +2125,7 @@ class Interface(BaseTemplate):
         self.to_disable = list(self.get_widgets_to_disable())
 
     def back_to_login(self) -> None:
-        """back to mysql setup page"""
+        """back to setup page"""
         self.switch_screen(Login)
 
     def upload(self) -> None:
@@ -4352,7 +4428,7 @@ class DeleteView(BaseTemplate):
         elif result is not None:
             messagebox.showinfo("Database Status", "Table does not exists")
         else:
-            messagebox.showinfo("Database Status", "SQLITE Error occured")
+            messagebox.showinfo("Database Status", "SQLITE Error occurred")
 
         GUI_Handler.unlock_gui_button(self.to_disable)
         GUI_Handler.remove_widget(self.quit)
@@ -4366,7 +4442,7 @@ class DeleteView(BaseTemplate):
         if year_check(year):
             if self.can_start_thread() and messagebox.askyesnocancel(
                 "Confirmation",
-                f"Month: {month}, Year: {year} \n Institue:{institute}, Type: {type} \n Are you sure you want to clear this data from DB?",
+                f"Month: {month}, Year: {year} \n institute:{institute}, Type: {type} \n Are you sure you want to clear this data from DB?",
             ):
                 self.thread = Thread(target=self.delete_thread, daemon=True)
                 self.process = Process(
