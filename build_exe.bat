@@ -64,6 +64,8 @@ xcopy %SQLITE_LIB% %LIBS_PATH%
 REM Activate virtual environment
 call "venv\Scripts\activate.bat"
 
+echo %YELLOW% %EQUAL% Activating Python environment %EQUAL% %RESET% 
+
 echo %YELLOW% %EQUAL% Installing Python dependencies %EQUAL% %RESET% 
 python -m pip install -r require.txt
 
