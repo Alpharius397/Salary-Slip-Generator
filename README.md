@@ -22,13 +22,13 @@ build_exe
 Install dependencies:
 
 ```bash
-pip install -r requirement.txt
+pip install -r require.txt
 ```
 
 ### Compile SqlCipher using pysqlite (works on my machine and needs Visual Studio)
 
 0) Install OpenSSL v3.3.5 and TCL
-Tcl is required to build SQLite. You can download it from [IronTCL](https://www.irontcl.com/). Once you have downloaded it, extract it to a folder and navigate to the bin directory. Copy the file tclsh86t.exe to tclsh.exe. This is because the build looks for tclsh.exe.
+Tcl is required to build SQLite. You can download it from [IronTCL](https://www.irontcl.com/). Once you have downloaded it, extract it to a folder and navigate to the bin directory. Copy the file tclsh86t.exe to tclsh.exe. This is because the build looks for tclsh.exe. Ensure to add this to the PATH variable
 
 
 1) Clone the sqlcipher repo and switch to the v4.5.7 (Sqlite v3.45.3)
