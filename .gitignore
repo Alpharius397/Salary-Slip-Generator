@@ -1,0 +1,18 @@
+# Pyinstaller 
+/build
+*.spec
+dist
+
+# Temp Files
+tempCodeRunnerFile*
+**/__pycache__
+.vscode
+
+# App files
+*.log
+*pdfs
+creds.py
+*.sqlite
+
+# Python env
+venv
