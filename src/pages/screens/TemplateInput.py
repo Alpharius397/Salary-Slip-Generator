@@ -748,7 +748,7 @@ class TemplateInput(BaseTemplate):
         GuiHandler.unlock_gui_button(self.to_disable)
         GuiHandler.remove_widget(self.quit)
 
-    def changeView(self, *args, **kwargs):
+    def changeView(self, *_, **__):
         sheet = self.sheet.get()
 
         if sheet:

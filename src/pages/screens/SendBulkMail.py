@@ -175,7 +175,7 @@ class SendBulkMail(BaseTemplate):
 
         self.to_disable = list(self.get_widgets_to_disable())
 
-    def changeType(self, *args, **kwargs):
+    def changeType(self, *_, **__):
         """changes type according to institute"""
         institute = self.chosen_institute.get()
         employee_type = self.outer.TOGGLE[institute]
@@ -352,7 +352,7 @@ class SendBulkMail(BaseTemplate):
                 process_args={
                     "queue": self.QUEUE,
                     "institute": self.chosen_institute.get(),
-                    "type": self.chosen_type.get(),
+                    "data_type": self.chosen_type.get(),
                     "year": year,
                     "month": month,
                 },

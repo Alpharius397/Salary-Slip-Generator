@@ -163,7 +163,7 @@ class DataPreview(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_yearList, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_monthList, self.entry_month)
 
-    def changeInstitute(self, *args, **kwargs) -> None:
+    def changeInstitute(self, *_, **__) -> None:
         """Changes Institute Type"""
         curr_institute = self.entry_institute.get()
         curr_type = list(self.tables[curr_institute].keys())
@@ -177,7 +177,7 @@ class DataPreview(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_yearList, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_monthList, self.entry_month)
 
-    def changeType(self, *args, **kwargs):
+    def changeType(self, *_, **__):
         """Changes Type Type"""
         curr_institute = self.entry_institute.get()
         curr_type = self.entry_type.get()
@@ -190,7 +190,7 @@ class DataPreview(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_yearList, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_monthList, self.entry_month)
 
-    def changeYear(self, *args, **kwargs) -> None:
+    def changeYear(self, *_, **__) -> None:
         """Changes the year"""
         curr_institute = self.entry_institute.get()
         curr_type = self.entry_type.get()
@@ -296,7 +296,7 @@ class DataPreview(BaseTemplate):
                 process_args={
                     "queue": self.QUEUE,
                     "institute": curr_institute,
-                    "type": curr_type,
+                    "data_type": curr_type,
                     "year": curr_year,
                     "month": curr_month,
                 },

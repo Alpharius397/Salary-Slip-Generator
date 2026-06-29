@@ -248,7 +248,7 @@ class UploadData(BaseTemplate):
         if self.size == MAX_TEXT_SIZE:
             GuiHandler.lock_gui_button([self.size_plus])
 
-    def changeType(self, *args, **kwargs):
+    def changeType(self, *_, **__):
         institute = self.chosen_institute.get()
         employee_str = self.outer.TOGGLE[institute]
         GuiHandler.setOptions(employee_str, self.toggle_type, self.chosen_type)
@@ -312,7 +312,7 @@ class UploadData(BaseTemplate):
                         process_args={
                             "queue": self.QUEUE,
                             "institute": institute,
-                            "type": employee_str,
+                            "data_type": employee_str,
                             "year": year,
                             "month": month,
                             "data_columns": list(
@@ -383,7 +383,7 @@ class UploadData(BaseTemplate):
                         "data": data,
                         "queue": self.QUEUE,
                         "institute": institute,
-                        "type": employee_type,
+                        "data_type": employee_type,
                         "year": year,
                         "month": month,
                     },
@@ -440,7 +440,7 @@ class UploadData(BaseTemplate):
                     process_args={
                         "queue": self.QUEUE,
                         "institute": institute,
-                        "type": employee_str,
+                        "data_type": employee_str,
                         "year": year,
                         "month": month,
                     },

@@ -24,26 +24,26 @@ class DatabaseWrapper:
         self,
         queue: Queue,
         institute: InstituteList,
-        type: TypeList,
+        data_type: TypeList,
         year: int,
         month: MonthList,
     ) -> None:
         """Wrapper for fetchAll"""
-        queue.put(self.connectToDatabase().fetchAll(month, year, institute, type))
+        queue.put(self.connectToDatabase().fetchAll(month, year, institute, data_type))
         self.endThis()
 
     def create_table(
         self,
         queue: Queue,
         institute: InstituteList,
-        type: TypeList,
+        data_type: TypeList,
         year: int,
         month: MonthList,
         data_columns: list[str],
     ) -> None:
         """Wrapper for create table"""
         create_result = self.connectToDatabase().createData(
-            month, year, data_columns, institute, type
+            month, year, data_columns, institute, data_type
         )
         queue.put(create_result)
         self.endThis()
@@ -52,14 +52,14 @@ class DatabaseWrapper:
         self,
         queue: Queue,
         institute: InstituteList,
-        type: TypeList,
+        data_type: TypeList,
         year: int,
         month: MonthList,
         data: pd.DataFrame,
     ):
         """Attempts to insert data or update data in db (Doesn't ask for updation)"""
         upsert_result = self.connectToDatabase().updateData(
-            data, month, year, institute, type
+            data, month, year, institute, data_type
         )
         queue.put(upsert_result)
         self.endThis()
@@ -68,12 +68,12 @@ class DatabaseWrapper:
         self,
         queue: Queue,
         institute: InstituteList,
-        type: TypeList,
+        data_type: TypeList,
         year: int,
         month: MonthList,
     ):
         """Delete Table"""
-        delete_result = self.connectToDatabase().dropTable(month, year, institute, type)
+        delete_result = self.connectToDatabase().dropTable(month, year, institute, data_type)
         queue.put(delete_result)
         self.endThis()
 

@@ -12,10 +12,10 @@ class Logger:
         formatter = logging.Formatter("[{asctime}]:[{levelname}]:{message}",style="{",datefmt="%d-%m-%Y %H:%M")
         console.setFormatter(formatter)
         file.setFormatter(formatter)
-        self.log.addHandler(console)        
-        self.log.addHandler(file)        
+        self.log.addHandler(console)
+        self.log.addHandler(file)
         self.log.setLevel(logging.DEBUG)
-                
+
     def write_error(self, msg:str, where:str = 'APPLICATION') -> None:
         """ Write Error """
         self.log.warning(msg=f"[{where}] {msg}",exc_info=True)
@@ -26,7 +26,7 @@ class Logger:
 
     def get_error_info(self, exception:Exception) -> str:
         """ Get formatted error """
-        if(isinstance(exception,Exception)): 
+        if isinstance(exception,Exception):
             return f"{exception.__class__.__module__}.{exception.__class__.__name__} : {exception}"
 
         return "Not an exception"

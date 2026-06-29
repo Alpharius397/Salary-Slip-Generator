@@ -225,7 +225,7 @@ class SendMail(BaseTemplate):
         GuiHandler.unlock_gui_button(self.to_disable)
         GuiHandler.remove_widget(self.quit)
 
-    def changeType(self, *args, **kwargs):
+    def changeType(self, *_, **__):
         """changes type according to institute"""
         institute = self.chosen_institute.get()
         employee_type = self.outer.TOGGLE[institute]
@@ -247,7 +247,7 @@ class SendMail(BaseTemplate):
             messagebox.showwarning("Email Check", "Improper Email Address format")
             return
 
-        if not (re.match(r"^(\w+|\d+)\Z", emp_id)):
+        if not re.match(r"^(\w+|\d+)\Z", emp_id):
             messagebox.showwarning("Employee ID check", "Improper Employee ID format")
             return
 
@@ -262,7 +262,7 @@ class SendMail(BaseTemplate):
                 process_args={
                     "pdf_path": Path(file_path),
                     "toAddr": toAddr,
-                    "id": id,
+                    "empId": emp_id,
                     "queue": self.QUEUE,
                 },
             )

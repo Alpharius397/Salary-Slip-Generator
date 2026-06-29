@@ -239,4 +239,3 @@ TEMPLATE = """<!DOCTYPE html>
 
 </body>
 </html>"""
-

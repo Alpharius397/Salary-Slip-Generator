@@ -19,7 +19,7 @@ class PDFTemplate:
 
     def check_json(self) -> list[str]:
         try:
-            return [i.name for i in self.json_path.iterdir() if i.suffix == ".json"]
+            return [i.name for i in self.json_path.iterdir() if i.suffix == ".json"][::-1]
         except Exception as e:
             self.log.write_error(self.log.get_error_info(e), "PARSE")
 
@@ -27,7 +27,7 @@ class PDFTemplate:
 
     def check_html(self) -> list[str]:
         try:
-            return [i.name for i in self.html_path.iterdir() if i.suffix == ".html"]
+            return [i.name for i in self.html_path.iterdir() if i.suffix == ".html"][::-1]
         except Exception as e:
             self.log.write_error(self.log.get_error_info(e), "PARSE")
 
@@ -71,7 +71,7 @@ class PDFTemplate:
             if not file_name.exists():
                 return new_html_file, memo
 
-            with open(file_name.resolve(), "r") as file:
+            with open(file_name.resolve(), "r", encoding="utf-8") as file:
                 while lines := file.readline():
                     lines = lines.replace("%", "%%")
 
@@ -109,7 +109,7 @@ class PDFTemplate:
 
         try:
             if path.exists():
-                return path.read_text()
+                return path.read_text("utf-8")
         except Exception as e:
             self.log.write_error(self.log.get_error_info(e), "PARSE")
 
@@ -119,9 +119,9 @@ class PDFTemplate:
         """preprocess the keys to escape %"""
         memo = {i.replace("%", "%%"): j for i, j in memo.items()}
 
-        html, vars = self.load_html(html_file)
-        vars.update(memo)
+        html, variables = self.load_html(html_file)
+        variables.update(memo)
 
-        return html % vars
+        return html % variables
 
 PDF_TEMPLATE = PDFTemplate(APP_PATH, ERROR_LOG)

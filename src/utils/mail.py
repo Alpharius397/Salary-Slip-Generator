@@ -25,7 +25,7 @@ class MailingWrapper:
         return self
 
     def attempt_mail_process(
-        self, pdf_path: Path, id: str, toAddr: str, queue: Queue
+        self, pdf_path: Path, empId: str, toAddr: str, queue: Queue
     ) -> None:
         """Updates queue when mailing process is done"""
 
@@ -36,7 +36,7 @@ class MailingWrapper:
                 f"Please find attached below the salary slip of {self.month.capitalize()}-{self.year}",
                 "plain",
             )
-            .addAttach(pdf_path, f"employee_{file_clean(id)}.pdf")
+            .addAttach(pdf_path, f"employee_{file_clean(empId)}.pdf")
             .addDetails(f"Salary slip of {self.month.capitalize()}-{self.year}")
             .sendMail(toAddr)
             .resetMIME()
@@ -47,7 +47,7 @@ class MailingWrapper:
         queue.put(ok)
 
     async def _sendMail(
-        self, mail: "AsyncMailing", pdf_path: Path, id: str, toAddr: str
+        self, mail: "AsyncMailing", pdf_path: Path, empId: str, toAddr: str
     ) -> bool:
         """Wrapper for continuous mail sending"""
 
@@ -57,7 +57,7 @@ class MailingWrapper:
                 f"Please find attached below the salary slip of {mailing.month.capitalize()}-{mailing.year}",
                 "plain",
             )
-            msg.addAttach(pdf_path, f"employee_{id}.pdf")
+            msg.addAttach(pdf_path, f"employee_{empId}.pdf")
             msg.addDetails(
                 f"Salary slip of {mailing.month.capitalize()}-{mailing.year}"
             )

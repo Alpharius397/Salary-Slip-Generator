@@ -295,7 +295,7 @@ class TemplateGeneration(BaseTemplate):
             ERROR_LOG.write_error(ERROR_LOG.get_error_info(e))
             file = None
 
-        if not (file_name):
+        if not file_name:
             messagebox.showerror("Template Generation", "File Name cannot be empty!")
             return
 
@@ -765,7 +765,7 @@ class TemplateGeneration(BaseTemplate):
 
         GuiHandler.remove_widget(self.quit)
 
-    def changeView(self, *args, **kwargs):
+    def changeView(self, *_, **__):
         sheet = self.sheet.get()
 
         if sheet:

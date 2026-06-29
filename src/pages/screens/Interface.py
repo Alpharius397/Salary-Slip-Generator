@@ -136,7 +136,6 @@ class Interface(BaseTemplate):
 
         if table:
             from src.pages.screens import DataPreview
-            
             view: DataPreview = self.outer.Screens[DataPreview.__name__]  # type: ignore
             view.tables = table
             view.changeData()
@@ -183,7 +182,6 @@ class Interface(BaseTemplate):
 
         if table:
             from src.pages.screens import DataPeek
-            
             view: DataPeek = self.outer.Screens[DataPeek.__name__] # type: ignore
             view.tables = table
             view.change_data()
@@ -209,10 +207,8 @@ class Interface(BaseTemplate):
 
     def template(self) -> None:
         from src.pages.screens import TemplateInput
-        
         self.switch_screen(TemplateInput)
 
     def template_download(self) -> None:
         from src.pages.screens import TemplateGeneration
-        
         self.switch_screen(TemplateGeneration)

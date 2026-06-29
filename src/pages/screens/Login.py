@@ -1,9 +1,8 @@
 from tkinter import messagebox
+import customtkinter as ctk  # type: ignore
 from src.logger import ERROR_LOG
 from src.constants import COLOR_SCHEME, IS_DEBUG
 from src.pages.template import BaseTemplate, App
-from tkinter import messagebox
-import customtkinter as ctk  # type: ignore
 
 
 class Login(BaseTemplate):

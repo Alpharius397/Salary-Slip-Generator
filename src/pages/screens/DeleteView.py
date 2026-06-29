@@ -127,7 +127,7 @@ class DeleteView(BaseTemplate):
                     process_args={
                         "queue": self.QUEUE,
                         "institute": institute,
-                        "type": employee_type,
+                        "data_type": employee_type,
                         "year": year,
                         "month": month,
                     },

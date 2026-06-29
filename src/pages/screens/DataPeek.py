@@ -170,7 +170,7 @@ class DataPeek(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_year_list, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_month_list, self.entry_month)
 
-    def changeInstitute(self, *args, **kwargs) -> None:
+    def changeInstitute(self, *_, **__) -> None:
         """Changes Institute Type"""
         curr_institute = self.entry_institute.get()
         curr_type = list(self.tables[curr_institute].keys())
@@ -184,7 +184,7 @@ class DataPeek(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_year_list, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_month_list, self.entry_month)
 
-    def change_type(self, *args, **kwargs):
+    def change_type(self, *_, **__):
         """Changes Type Type"""
         curr_institute = self.entry_institute.get()
         curr_type = self.entry_type.get()
@@ -197,7 +197,7 @@ class DataPeek(BaseTemplate):
         GuiHandler.setOptions(curr_year, self.entry_year_list, self.entry_year)
         GuiHandler.setOptions(curr_month, self.entry_month_list, self.entry_month)
 
-    def change_year(self, *args, **kwargs) -> None:
+    def change_year(self, *_, **__) -> None:
         """Changes the year"""
         curr_institute = self.entry_institute.get()
         curr_type = self.entry_type.get()

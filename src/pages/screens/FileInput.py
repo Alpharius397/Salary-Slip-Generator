@@ -562,8 +562,7 @@ class FileInput(BaseTemplate):
             BaseTemplate.data = data
             GuiHandler.setOptions(sheets, self.sheetList, self.sheet)
             self.set_after_upload_state()
-            GuiHandler.view_excel(data[sheets[0]], self.text_excel) 
-
+            GuiHandler.view_excel(data[sheets[0]], self.text_excel)
             self.prev_password = self.password_box.get()
             messagebox.showinfo(
                 "Upload Status", f"Excel File '{self.file.get()}' was loaded"
@@ -660,7 +659,7 @@ class FileInput(BaseTemplate):
             GuiHandler.unlock_gui_button(self.to_disable)
             GuiHandler.remove_widget(self.quit)
 
-    def changeView(self, *args, **kwargs):
+    def changeView(self, *_, **__):
         sheet = self.sheet.get()
 
         if sheet:
